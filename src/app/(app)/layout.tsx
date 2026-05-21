@@ -1,5 +1,6 @@
 import { AppNav } from "@/components/AppNav";
 import { QuickCapture } from "@/components/QuickCapture";
+import { AuthGate } from "@/features/sync/AuthGate";
 
 export default function AppLayout({
   children,
@@ -7,10 +8,12 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col flex-1">
-      <AppNav />
-      {children}
-      <QuickCapture />
-    </div>
+    <AuthGate>
+      <div className="flex flex-col flex-1">
+        <AppNav />
+        {children}
+        <QuickCapture />
+      </div>
+    </AuthGate>
   );
 }

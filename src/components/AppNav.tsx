@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRequestPending } from "./useRequestPending";
+import { SignOutButton } from "@/features/auth/components/SignOutButton";
 
 const NAV_LINKS: { href: string; label: string }[] = [
   { href: "/today", label: "Today" },
@@ -76,6 +77,7 @@ export function AppNav() {
               </Link>
             );
           })}
+          <SignOutButton />
         </div>
 
         <button
@@ -111,6 +113,9 @@ export function AppNav() {
                 </li>
               );
             })}
+            <li className="mt-2 pt-3 border-t border-border">
+              <SignOutButton />
+            </li>
           </ul>
         </div>
       )}
