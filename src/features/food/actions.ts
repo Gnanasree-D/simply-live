@@ -1,10 +1,5 @@
-"use server";
-
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { genId, getLocalDb, now } from "@/lib/local-db";
 
 export interface FoodState {
   ok?: boolean;
@@ -15,7 +10,10 @@ const MealEnum = z.enum(["breakfast", "lunch", "dinner", "snack"]);
 
 const CreateFoodSchema = z.object({
   name: z.string().trim().min(1, "Add a name"),
-  isJunk: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
+  isJunk: z.preprocess(
+    (v) => v === "on" || v === "true" || v === true,
+    z.boolean(),
+  ),
   meal: z.preprocess(
     (v) => (v === "" || v == null ? undefined : v),
     MealEnum.optional(),
@@ -27,18 +25,10 @@ const UpdateFoodSchema = CreateFoodSchema.extend({
   id: z.string().min(1),
 });
 
-function revalidateFood() {
-  revalidatePath("/food");
-  revalidatePath("/today");
-}
-
 export async function createFood(
   _prev: FoodState,
   formData: FormData,
 ): Promise<FoodState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = CreateFoodSchema.safeParse({
     name: formData.get("name"),
     isJunk: formData.get("isJunk"),
@@ -51,21 +41,21 @@ export async function createFood(
     };
   }
 
-  await db.entry.create({
+  const t = now();
+  await getLocalDb().entries.add({
+    id: genId(),
+    kind: "FOOD",
     data: {
-      userId: session.user.id,
-      kind: "FOOD",
-      data: {
-        name: parsed.data.name,
-        isJunk: parsed.data.isJunk,
-        meal: parsed.data.meal,
-        notes: parsed.data.notes,
-      },
-      tags: [],
-      goalRefs: [],
+      name: parsed.data.name,
+      isJunk: parsed.data.isJunk,
+      meal: parsed.data.meal,
+      notes: parsed.data.notes,
     },
+    tags: [],
+    goalRefs: [],
+    createdAt: t,
+    updatedAt: t,
   });
-  revalidateFood();
   return { ok: true };
 }
 
@@ -73,9 +63,6 @@ export async function updateFood(
   _prev: FoodState,
   formData: FormData,
 ): Promise<FoodState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = UpdateFoodSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -88,31 +75,24 @@ export async function updateFood(
       error: parsed.error.flatten().fieldErrors.name?.[0] ?? "Invalid input",
     };
   }
+  const db = getLocalDb();
+  const row = await db.entries.get(parsed.data.id);
+  if (!row || row.kind !== "FOOD") return { error: "Food not found" };
 
-  await db.entry.updateMany({
-    where: { id: parsed.data.id, userId: session.user.id, kind: "FOOD" },
+  await db.entries.update(parsed.data.id, {
     data: {
-      data: {
-        name: parsed.data.name,
-        isJunk: parsed.data.isJunk,
-        meal: parsed.data.meal,
-        notes: parsed.data.notes,
-      },
+      name: parsed.data.name,
+      isJunk: parsed.data.isJunk,
+      meal: parsed.data.meal,
+      notes: parsed.data.notes,
     },
+    updatedAt: now(),
   });
-  revalidateFood();
   return { ok: true };
 }
 
 export async function deleteFood(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  await db.entry.deleteMany({
-    where: { id, userId: session.user.id, kind: "FOOD" },
-  });
-  revalidateFood();
+  await getLocalDb().entries.delete(id);
 }

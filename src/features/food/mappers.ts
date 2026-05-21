@@ -1,20 +1,11 @@
 import type { FoodEntry, Meal } from "@/core/entry/schema";
+import type { EntryRow } from "@/lib/local-db";
 
 interface FoodDataPayload {
   name?: string;
   isJunk?: boolean;
   meal?: string;
   notes?: string;
-}
-
-interface EntryRow {
-  id: string;
-  userId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  tags: string[];
-  goalRefs: string[];
-  data: unknown;
 }
 
 function asMeal(s: unknown): Meal | undefined {
@@ -28,7 +19,7 @@ export function materializeFood(row: EntryRow): FoodEntry {
   return {
     kind: "food",
     id: row.id,
-    userId: row.userId,
+    userId: "",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     tags: row.tags,

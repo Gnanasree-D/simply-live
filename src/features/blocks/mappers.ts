@@ -1,4 +1,5 @@
 import type { BlockEntry } from "@/core/entry/schema";
+import type { EntryRow } from "@/lib/local-db";
 
 interface BlockDataPayload {
   title: string;
@@ -7,22 +8,12 @@ interface BlockDataPayload {
   todoRef?: string;
 }
 
-interface EntryRow {
-  id: string;
-  userId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  tags: string[];
-  goalRefs: string[];
-  data: unknown;
-}
-
 export function materializeBlock(row: EntryRow): BlockEntry {
   const data = (row.data ?? {}) as BlockDataPayload;
   return {
     kind: "block",
     id: row.id,
-    userId: row.userId,
+    userId: "",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     tags: row.tags,

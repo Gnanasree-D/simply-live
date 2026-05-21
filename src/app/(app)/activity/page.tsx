@@ -1,5 +1,7 @@
+"use client";
+
 import { Dumbbell } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   getDailyActivitySummary,
   listActivityForDay,
@@ -10,16 +12,13 @@ import { WorkoutComposer } from "@/features/activity/components/WorkoutComposer"
 import { ActivityLog } from "@/features/activity/components/ActivityLog";
 import { EmptyHint } from "@/components/EmptyHint";
 
-export default async function ActivityPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+export default function ActivityPage() {
+  const summary = useLiveQuery(() => getDailyActivitySummary(new Date()));
+  const entries = useLiveQuery(() => listActivityForDay(new Date()));
+
+  if (summary === undefined || entries === undefined) return null;
 
   const now = new Date();
-  const [summary, entries] = await Promise.all([
-    getDailyActivitySummary(session.user.id, now),
-    listActivityForDay(session.user.id, now),
-  ]);
-
   const dateLabel = now.toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",

@@ -6,7 +6,7 @@ export function GoalActivityRow({ goal }: { goal: GoalActivityEntry }) {
   const achieved = goal.status === "ACHIEVED";
   return (
     <Link
-      href={`/goals/${goal.id}`}
+      href={`/goals/detail?id=${goal.id}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
     >
       <span

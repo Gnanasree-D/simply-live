@@ -1,18 +1,9 @@
 import type { JournalEntry, Mood } from "@/core/entry/schema";
+import type { EntryRow } from "@/lib/local-db";
 
 interface JournalDataPayload {
   body: string;
   mood?: Mood;
-}
-
-interface EntryRow {
-  id: string;
-  userId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  tags: string[];
-  goalRefs: string[];
-  data: unknown;
 }
 
 export function materializeJournal(row: EntryRow): JournalEntry {
@@ -20,7 +11,7 @@ export function materializeJournal(row: EntryRow): JournalEntry {
   return {
     kind: "journal",
     id: row.id,
-    userId: row.userId,
+    userId: "",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     tags: row.tags,

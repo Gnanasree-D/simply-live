@@ -1,4 +1,5 @@
 import type { ActivityEntry, ActivitySubtype } from "@/core/entry/schema";
+import type { EntryRow } from "@/lib/local-db";
 
 interface ActivityDataPayload {
   subtype?: string;
@@ -7,16 +8,6 @@ interface ActivityDataPayload {
   cups?: number;
   count?: number;
   notes?: string;
-}
-
-interface EntryRow {
-  id: string;
-  userId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  tags: string[];
-  goalRefs: string[];
-  data: unknown;
 }
 
 function isValidSubtype(s: unknown): s is ActivitySubtype {
@@ -29,7 +20,7 @@ export function materializeActivity(row: EntryRow): ActivityEntry | null {
   return {
     kind: "activity",
     id: row.id,
-    userId: row.userId,
+    userId: "",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     tags: row.tags,

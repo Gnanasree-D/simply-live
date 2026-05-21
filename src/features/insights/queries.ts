@@ -1,31 +1,31 @@
-import "server-only";
-import { db } from "@/lib/db";
+import { getLocalDb } from "@/lib/local-db";
 import { computeInsights, type InsightsResult } from "@/core/insights/compute";
 import type { Mood } from "@/core/entry/schema";
 
-export async function getInsights(userId: string): Promise<InsightsResult> {
-  const [entries, habits, goals] = await Promise.all([
-    db.entry.findMany({
-      where: { userId },
-      select: { kind: true, createdAt: true, tags: true, goalRefs: true, data: true },
-      orderBy: { createdAt: "asc" },
-      take: 5000,
-    }),
-    db.habit.findMany({
-      where: { userId, archived: false },
-      select: {
-        id: true,
-        createdAt: true,
-        weekdays: true,
-        intervalDays: true,
-        cadence: true,
-      },
-    }),
-    db.goal.findMany({
-      where: { userId },
-      select: { id: true, title: true, status: true },
-    }),
+export async function getInsights(): Promise<InsightsResult> {
+  const db = getLocalDb();
+  const [allEntries, allHabits, allGoals] = await Promise.all([
+    db.entries.toArray(),
+    db.habits.toArray(),
+    db.goals.toArray(),
   ]);
+  const entries = [...allEntries].sort(
+    (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+  );
+  const habits = allHabits
+    .filter((h) => !h.archived)
+    .map((h) => ({
+      id: h.id,
+      createdAt: h.createdAt,
+      weekdays: h.weekdays,
+      intervalDays: h.intervalDays,
+      cadence: h.cadence,
+    }));
+  const goals = allGoals.map((g) => ({
+    id: g.id,
+    title: g.title,
+    status: g.status,
+  }));
 
   const habitCompletions: { habitId: string; date: Date }[] = [];
   const goalEntries: { goalId: string; createdAt: Date }[] = [];

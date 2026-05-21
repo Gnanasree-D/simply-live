@@ -27,9 +27,9 @@ export function SubmitIconButton({
       className={cn("transition-colors disabled:opacity-50", className)}
     >
       {pending ? (
-        <Loader2 className={cn(iconClassName, "animate-spin")} aria-hidden="true" />
+        <Loader2 className={cn(iconClassName, "animate-spin")} aria-hidden={true} />
       ) : (
-        <Icon className={iconClassName} aria-hidden="true" />
+        <Icon className={iconClassName} aria-hidden={true} />
       )}
     </button>
   );

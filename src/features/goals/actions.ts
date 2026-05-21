@@ -1,10 +1,5 @@
-"use server";
-
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { genId, getLocalDb, now } from "@/lib/local-db";
 
 export interface GoalState {
   ok?: boolean;
@@ -31,9 +26,6 @@ export async function createGoal(
   _prev: GoalState,
   formData: FormData,
 ): Promise<GoalState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = GoalFormSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description"),
@@ -45,18 +37,16 @@ export async function createGoal(
     };
   }
 
-  await db.goal.create({
-    data: {
-      userId: session.user.id,
-      title: parsed.data.title,
-      description: parsed.data.description,
-      targetDate: parsed.data.targetDate ?? null,
-      status: "ACTIVE",
-    },
+  const t = now();
+  await getLocalDb().goals.add({
+    id: genId(),
+    title: parsed.data.title,
+    description: parsed.data.description,
+    targetDate: parsed.data.targetDate ?? null,
+    status: "ACTIVE",
+    createdAt: t,
+    updatedAt: t,
   });
-
-  revalidatePath("/goals");
-  revalidatePath("/today");
   return { ok: true };
 }
 
@@ -64,9 +54,6 @@ export async function updateGoal(
   _prev: GoalState,
   formData: FormData,
 ): Promise<GoalState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = UpdateGoalFormSchema.safeParse({
     id: formData.get("id"),
     title: formData.get("title"),
@@ -79,90 +66,52 @@ export async function updateGoal(
     };
   }
 
-  const goal = await db.goal.findFirst({
-    where: { id: parsed.data.id, userId: session.user.id },
-  });
+  const db = getLocalDb();
+  const goal = await db.goals.get(parsed.data.id);
   if (!goal) return { error: "Goal not found" };
 
-  await db.goal.update({
-    where: { id: parsed.data.id },
-    data: {
-      title: parsed.data.title,
-      description: parsed.data.description,
-      targetDate: parsed.data.targetDate ?? null,
-    },
+  await db.goals.update(parsed.data.id, {
+    title: parsed.data.title,
+    description: parsed.data.description,
+    targetDate: parsed.data.targetDate ?? null,
+    updatedAt: now(),
   });
-
-  revalidatePath("/goals");
-  revalidatePath(`/goals/${parsed.data.id}`);
-  revalidatePath("/today");
   return { ok: true };
 }
 
 export async function toggleGoalAchieved(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  const goal = await db.goal.findFirst({
-    where: { id, userId: session.user.id },
-  });
+  const db = getLocalDb();
+  const goal = await db.goals.get(id);
   if (!goal) return;
-
-  await db.goal.update({
-    where: { id },
-    data: { status: goal.status === "ACHIEVED" ? "ACTIVE" : "ACHIEVED" },
+  await db.goals.update(id, {
+    status: goal.status === "ACHIEVED" ? "ACTIVE" : "ACHIEVED",
+    updatedAt: now(),
   });
-
-  revalidatePath("/goals");
-  revalidatePath(`/goals/${id}`);
-  revalidatePath("/today");
 }
 
 export async function deleteGoal(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  // Scrub from any entries that reference this goal
-  const entries = await db.entry.findMany({
-    where: { userId: session.user.id, goalRefs: { has: id } },
-    select: { id: true, goalRefs: true },
-  });
-  for (const e of entries) {
-    await db.entry.update({
-      where: { id: e.id },
-      data: { goalRefs: { set: e.goalRefs.filter((ref) => ref !== id) } },
+  const db = getLocalDb();
+  // Scrub the goalId from any entries that reference it
+  const refs = await db.entries
+    .where("goalRefs")
+    .equals(id)
+    .toArray();
+  for (const e of refs) {
+    await db.entries.update(e.id, {
+      goalRefs: e.goalRefs.filter((r) => r !== id),
+      updatedAt: now(),
     });
   }
-
-  await db.goal.deleteMany({
-    where: { id, userId: session.user.id },
-  });
-
-  revalidatePath("/goals");
-  revalidatePath("/journal");
-  revalidatePath("/todos");
-  revalidatePath("/today");
-  redirect("/goals");
+  await db.goals.delete(id);
 }
 
-/**
- * Validate a list of goal IDs against the user's own goals.
- * Returns the subset that actually exists & belongs to the user.
- */
-export async function filterUserGoalIds(
-  userId: string,
-  goalIds: string[],
-): Promise<string[]> {
+/** Validate goal IDs exist locally; returns the subset that are real. */
+export async function filterGoalIds(goalIds: string[]): Promise<string[]> {
   if (goalIds.length === 0) return [];
-  const rows = await db.goal.findMany({
-    where: { id: { in: goalIds }, userId },
-    select: { id: true },
-  });
+  const rows = await getLocalDb().goals.where("id").anyOf(goalIds).toArray();
   return rows.map((r) => r.id);
 }

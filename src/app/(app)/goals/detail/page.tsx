@@ -1,9 +1,11 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { auth } from "@/lib/auth";
-import { getGoalDetail } from "@/features/goals/queries";
-import { listActiveGoalsLight } from "@/features/goals/queries";
+import { useLiveQuery } from "dexie-react-hooks";
+import { getGoalDetail, listActiveGoalsLight } from "@/features/goals/queries";
 import { JournalEntryCard } from "@/features/journal/components/JournalEntryCard";
 import { MilestoneComposer } from "@/features/goals/components/MilestoneComposer";
 import { GoalRoadmap } from "@/features/goals/components/GoalRoadmap";
@@ -11,22 +13,43 @@ import { GoalTree } from "@/features/goals/components/GoalTree";
 import { daysBetween, formatTargetDate } from "@/core/time/day";
 import { EmptyHint } from "@/components/EmptyHint";
 
-export default async function GoalDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+function GoalDetailInner() {
+  const params = useSearchParams();
+  const id = params.get("id") ?? "";
 
-  const { id } = await params;
-  const detail = await getGoalDetail(session.user.id, id);
-  if (!detail) notFound();
+  const detail = useLiveQuery(
+    () => (id ? getGoalDetail(id) : Promise.resolve(null)),
+    [id],
+  );
+  const goalsForPicker = useLiveQuery(() => listActiveGoalsLight());
 
-  // For the edit dropdowns on linked cards
-  const [goalsForPicker] = await Promise.all([
-    listActiveGoalsLight(session.user.id),
-  ]);
+  if (!id) {
+    return (
+      <main className="flex-1 mx-auto w-full max-w-2xl px-6 py-10">
+        <Link
+          href="/goals"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+        >
+          <ArrowLeft className="size-3.5" /> Goals
+        </Link>
+        <EmptyHint>No goal selected.</EmptyHint>
+      </main>
+    );
+  }
+  if (detail === undefined || goalsForPicker === undefined) return null;
+  if (detail === null) {
+    return (
+      <main className="flex-1 mx-auto w-full max-w-2xl px-6 py-10">
+        <Link
+          href="/goals"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+        >
+          <ArrowLeft className="size-3.5" /> Goals
+        </Link>
+        <EmptyHint>This goal no longer exists.</EmptyHint>
+      </main>
+    );
+  }
 
   const { goal, journals, todos, otherEntries } = detail;
   const achieved = goal.status === "ACHIEVED";
@@ -133,3 +156,10 @@ export default async function GoalDetailPage({
   );
 }
 
+export default function GoalDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <GoalDetailInner />
+    </Suspense>
+  );
+}

@@ -1,10 +1,5 @@
-"use server";
-
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { genId, getLocalDb, now } from "@/lib/local-db";
 import { endOfDay, startOfDay } from "@/core/time/day";
 
 export interface HabitState {
@@ -94,9 +89,6 @@ export async function createHabit(
   _prev: HabitState,
   formData: FormData,
 ): Promise<HabitState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = HabitTitleSchema.safeParse({
     title: formData.get("title"),
     categoryId: formData.get("categoryId"),
@@ -112,26 +104,24 @@ export async function createHabit(
   const cadenceFields = deriveCadence(cadenceParsed);
   if (!cadenceFields) return { error: "Invalid cadence" };
 
+  const db = getLocalDb();
   if (parsed.data.categoryId) {
-    const cat = await db.habitCategory.findFirst({
-      where: { id: parsed.data.categoryId, userId: session.user.id },
-    });
+    const cat = await db.habitCategories.get(parsed.data.categoryId);
     if (!cat) return { error: "Category not found" };
   }
 
-  await db.habit.create({
-    data: {
-      userId: session.user.id,
-      title: parsed.data.title,
-      cadence: cadenceFields.cadence,
-      weekdays: cadenceFields.weekdays,
-      intervalDays: cadenceFields.intervalDays,
-      categoryId: parsed.data.categoryId,
-    },
+  const t = now();
+  await db.habits.add({
+    id: genId(),
+    title: parsed.data.title,
+    cadence: cadenceFields.cadence,
+    weekdays: cadenceFields.weekdays,
+    intervalDays: cadenceFields.intervalDays,
+    archived: false,
+    categoryId: parsed.data.categoryId,
+    createdAt: t,
+    updatedAt: t,
   });
-
-  revalidatePath("/habits");
-  revalidatePath("/today");
   return { ok: true };
 }
 
@@ -139,9 +129,6 @@ export async function updateHabit(
   _prev: HabitState,
   formData: FormData,
 ): Promise<HabitState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = UpdateHabitTitleSchema.safeParse({
     id: formData.get("id"),
     title: formData.get("title"),
@@ -158,130 +145,97 @@ export async function updateHabit(
   const cadenceFields = deriveCadence(cadenceParsed);
   if (!cadenceFields) return { error: "Invalid cadence" };
 
-  const habit = await db.habit.findFirst({
-    where: { id: parsed.data.id, userId: session.user.id },
-  });
+  const db = getLocalDb();
+  const habit = await db.habits.get(parsed.data.id);
   if (!habit) return { error: "Habit not found" };
 
   if (parsed.data.categoryId) {
-    const cat = await db.habitCategory.findFirst({
-      where: { id: parsed.data.categoryId, userId: session.user.id },
-    });
+    const cat = await db.habitCategories.get(parsed.data.categoryId);
     if (!cat) return { error: "Category not found" };
   }
 
-  await db.habit.update({
-    where: { id: parsed.data.id },
-    data: {
-      title: parsed.data.title,
-      cadence: cadenceFields.cadence,
-      weekdays: cadenceFields.weekdays,
-      intervalDays: cadenceFields.intervalDays,
-      categoryId: parsed.data.categoryId,
-    },
+  await db.habits.update(parsed.data.id, {
+    title: parsed.data.title,
+    cadence: cadenceFields.cadence,
+    weekdays: cadenceFields.weekdays,
+    intervalDays: cadenceFields.intervalDays,
+    categoryId: parsed.data.categoryId,
+    updatedAt: now(),
   });
-
-  revalidatePath("/habits");
-  revalidatePath("/today");
   return { ok: true };
 }
 
 export async function deleteHabit(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  const habit = await db.habit.findFirst({
-    where: { id, userId: session.user.id },
-  });
-  if (!habit) return;
-
-  const entries = await db.entry.findMany({
-    where: { userId: session.user.id, kind: "HABIT" },
-    select: { id: true, data: true },
-  });
+  const db = getLocalDb();
+  // Delete any habit check-in entries for this habit
+  const entries = await db.entries.where("kind").equals("HABIT").toArray();
   const orphans = entries
     .filter((e) => (e.data as { habitId?: string })?.habitId === id)
     .map((e) => e.id);
   if (orphans.length > 0) {
-    await db.entry.deleteMany({ where: { id: { in: orphans } } });
+    await db.entries.bulkDelete(orphans);
   }
-
-  await db.habit.delete({ where: { id } });
-
-  revalidatePath("/habits");
-  revalidatePath("/today");
+  await db.habits.delete(id);
 }
 
 export async function toggleHabitToday(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const habitId = String(formData.get("habitId") ?? "");
   if (!habitId) return;
-
-  const habit = await db.habit.findFirst({
-    where: { id: habitId, userId: session.user.id },
-  });
+  const db = getLocalDb();
+  const habit = await db.habits.get(habitId);
   if (!habit) return;
 
-  const now = new Date();
-  const todays = await db.entry.findMany({
-    where: {
-      userId: session.user.id,
-      kind: "HABIT",
-      createdAt: { gte: startOfDay(now), lt: endOfDay(now) },
-    },
-    select: { id: true, data: true },
-  });
+  const t = now();
+  const todays = (
+    await db.entries.where("kind").equals("HABIT").toArray()
+  ).filter(
+    (e) => e.createdAt >= startOfDay(t) && e.createdAt <= endOfDay(t),
+  );
 
   const existing = todays.find(
     (e) => (e.data as { habitId?: string })?.habitId === habitId,
   );
 
   if (existing) {
-    await db.entry.delete({ where: { id: existing.id } });
+    await db.entries.delete(existing.id);
   } else {
-    await db.entry.create({
-      data: {
-        userId: session.user.id,
-        kind: "HABIT",
-        data: { habitId, completedAt: now.toISOString() },
-        tags: [],
-        goalRefs: [],
-      },
+    await db.entries.add({
+      id: genId(),
+      kind: "HABIT",
+      data: { habitId, completedAt: t.toISOString() },
+      tags: [],
+      goalRefs: [],
+      createdAt: t,
+      updatedAt: t,
     });
   }
-
-  revalidatePath("/habits");
-  revalidatePath("/today");
 }
 
 export async function createCategory(
   _prev: CategoryState,
   formData: FormData,
 ): Promise<CategoryState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = CategoryNameSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) {
     return {
       error: parsed.error.flatten().fieldErrors.name?.[0] ?? "Invalid input",
     };
   }
-
-  try {
-    await db.habitCategory.create({
-      data: { userId: session.user.id, name: parsed.data.name },
-    });
-  } catch {
-    return { error: "Category already exists" };
-  }
-
-  revalidatePath("/habits");
+  const db = getLocalDb();
+  const existing = await db.habitCategories
+    .where("name")
+    .equalsIgnoreCase(parsed.data.name)
+    .first();
+  if (existing) return { error: "Category already exists" };
+  const t = now();
+  await db.habitCategories.add({
+    id: genId(),
+    name: parsed.data.name,
+    createdAt: t,
+    updatedAt: t,
+  });
   return { ok: true };
 }
 
@@ -289,9 +243,6 @@ export async function updateCategory(
   _prev: CategoryState,
   formData: FormData,
 ): Promise<CategoryState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = UpdateCategoryFormSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -301,37 +252,25 @@ export async function updateCategory(
       error: parsed.error.flatten().fieldErrors.name?.[0] ?? "Invalid input",
     };
   }
-
-  const cat = await db.habitCategory.findFirst({
-    where: { id: parsed.data.id, userId: session.user.id },
-  });
+  const db = getLocalDb();
+  const cat = await db.habitCategories.get(parsed.data.id);
   if (!cat) return { error: "Category not found" };
-
-  try {
-    await db.habitCategory.update({
-      where: { id: parsed.data.id },
-      data: { name: parsed.data.name },
-    });
-  } catch {
+  const duplicate = await db.habitCategories
+    .where("name")
+    .equalsIgnoreCase(parsed.data.name)
+    .filter((c) => c.id !== parsed.data.id)
+    .first();
+  if (duplicate)
     return { error: "A category with that name already exists" };
-  }
-
-  revalidatePath("/habits");
-  revalidatePath("/today");
+  await db.habitCategories.update(parsed.data.id, {
+    name: parsed.data.name,
+    updatedAt: now(),
+  });
   return { ok: true };
 }
 
 export async function deleteCategory(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  await db.habitCategory.deleteMany({
-    where: { id, userId: session.user.id },
-  });
-
-  revalidatePath("/habits");
-  revalidatePath("/today");
+  await getLocalDb().habitCategories.delete(id);
 }

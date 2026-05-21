@@ -1,5 +1,4 @@
-import "server-only";
-import { db } from "@/lib/db";
+import { getLocalDb } from "@/lib/local-db";
 import type { TodoEntry } from "@/core/entry/schema";
 import { materializeTodo } from "./mappers";
 
@@ -9,14 +8,15 @@ export interface ListTodosOpts {
 }
 
 export async function listTodos(
-  userId: string,
   opts: ListTodosOpts = {},
 ): Promise<TodoEntry[]> {
-  const rows = await db.entry.findMany({
-    where: { userId, kind: "TODO" },
-    orderBy: { createdAt: "desc" },
-    take: opts.limit ?? 200,
-  });
-  const todos = rows.map(materializeTodo);
+  const rows = await getLocalDb()
+    .entries.where("kind")
+    .equals("TODO")
+    .toArray();
+  rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const todos = (opts.limit ? rows.slice(0, opts.limit) : rows).map(
+    materializeTodo,
+  );
   return opts.onlyOpen ? todos.filter((t) => !t.done) : todos;
 }

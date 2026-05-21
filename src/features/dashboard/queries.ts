@@ -1,5 +1,4 @@
-import "server-only";
-import { db } from "@/lib/db";
+import { getLocalDb } from "@/lib/local-db";
 import { computeStreak } from "@/core/streaks/compute";
 import { startOfDay, startOfWeek, todayKey } from "@/core/time/day";
 
@@ -60,22 +59,21 @@ interface EntryRow {
   data: unknown;
 }
 
-export async function getDashboardData(userId: string): Promise<DashboardData> {
-  const [entries, habits, goals] = await Promise.all([
-    db.entry.findMany({
-      where: { userId },
-      select: { kind: true, createdAt: true, goalRefs: true, data: true },
-      orderBy: { createdAt: "asc" },
-      take: 5000,
-    }),
-    db.habit.findMany({
-      where: { userId, archived: false },
-      orderBy: { createdAt: "asc" },
-    }),
-    db.goal.findMany({
-      where: { userId },
-    }),
+export async function getDashboardData(): Promise<DashboardData> {
+  const db = getLocalDb();
+  const [allEntries, allHabits, allGoals] = await Promise.all([
+    db.entries.toArray(),
+    db.habits.toArray(),
+    db.goals.toArray(),
   ]);
+
+  const entries = [...allEntries].sort(
+    (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+  );
+  const habits = allHabits
+    .filter((h) => !h.archived)
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  const goals = allGoals;
 
   return {
     activityDays: buildActivityHeatmap(entries, 12),

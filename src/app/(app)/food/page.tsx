@@ -1,21 +1,16 @@
-import { auth } from "@/lib/auth";
-import {
-  getFoodSummary,
-  listFoodForDay,
-} from "@/features/food/queries";
+"use client";
+
+import { useLiveQuery } from "dexie-react-hooks";
+import { getFoodSummary, listFoodForDay } from "@/features/food/queries";
 import { FoodComposer } from "@/features/food/components/FoodComposer";
 import { FoodCard } from "@/features/food/components/FoodCard";
 import { EmptyHint } from "@/components/EmptyHint";
 
-export default async function FoodPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+export default function FoodPage() {
+  const summary = useLiveQuery(() => getFoodSummary(new Date()));
+  const todays = useLiveQuery(() => listFoodForDay(new Date()));
 
-  const now = new Date();
-  const [summary, todays] = await Promise.all([
-    getFoodSummary(session.user.id, now),
-    listFoodForDay(session.user.id, now),
-  ]);
+  if (summary === undefined || todays === undefined) return null;
 
   const junkPctWeek =
     summary.totalThisWeek > 0

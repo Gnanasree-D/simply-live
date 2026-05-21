@@ -1,4 +1,6 @@
-import { auth } from "@/lib/auth";
+"use client";
+
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   listHabitCategories,
   listHabitsWithStreaks,
@@ -31,14 +33,12 @@ function groupByCategory(habits: HabitWithStreak[]): Group[] {
   });
 }
 
-export default async function HabitsPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+export default function HabitsPage() {
+  const habits = useLiveQuery(() => listHabitsWithStreaks());
+  const categories = useLiveQuery(() => listHabitCategories());
 
-  const [habits, categories] = await Promise.all([
-    listHabitsWithStreaks(session.user.id),
-    listHabitCategories(session.user.id),
-  ]);
+  if (habits === undefined || categories === undefined) return null;
+
   const doneToday = habits.filter((h) => h.doneToday).length;
   const groups = groupByCategory(habits);
 

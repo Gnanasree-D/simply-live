@@ -1,4 +1,6 @@
-import { auth } from "@/lib/auth";
+"use client";
+
+import { useLiveQuery } from "dexie-react-hooks";
 import { listTodos } from "@/features/todos/queries";
 import { TodoComposer } from "@/features/todos/components/TodoComposer";
 import { TodoCard } from "@/features/todos/components/TodoCard";
@@ -6,11 +8,10 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { EmptyHint } from "@/components/EmptyHint";
 import { isSameDay, startOfDay } from "@/core/time/day";
 
-export default async function TodosPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+export default function TodosPage() {
+  const allTodos = useLiveQuery(() => listTodos());
+  if (allTodos === undefined) return null;
 
-  const allTodos = await listTodos(session.user.id);
   // Milestones (todos linked to a goal) live on the goal detail page, not here.
   const todos = allTodos.filter((t) => t.goalRefs.length === 0);
   const open = todos.filter((t) => !t.done);

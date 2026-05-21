@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 const HOLD_MS = 1400;
 
 export function useRequestPending(): boolean {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [pending, setPending] = useState(false);
   const hideRef = useRef<number | undefined>(undefined);
   const initial = useRef(true);
@@ -20,7 +19,7 @@ export function useRequestPending(): boolean {
     setPending(true);
     window.clearTimeout(hideRef.current);
     hideRef.current = window.setTimeout(() => setPending(false), 350);
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   useEffect(() => {
     function ping() {

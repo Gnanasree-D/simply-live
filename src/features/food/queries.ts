@@ -1,34 +1,32 @@
-import "server-only";
-import { db } from "@/lib/db";
+import { getLocalDb } from "@/lib/local-db";
 import type { FoodEntry } from "@/core/entry/schema";
 import { endOfDay, startOfDay } from "@/core/time/day";
 import { materializeFood } from "./mappers";
 
 export async function listFoodForDay(
-  userId: string,
   day: Date = new Date(),
 ): Promise<FoodEntry[]> {
-  const rows = await db.entry.findMany({
-    where: {
-      userId,
-      kind: "FOOD",
-      createdAt: { gte: startOfDay(day), lte: endOfDay(day) },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-  return rows.map(materializeFood);
+  const rows = await getLocalDb()
+    .entries.where("kind")
+    .equals("FOOD")
+    .toArray();
+  return rows
+    .filter(
+      (r) => r.createdAt >= startOfDay(day) && r.createdAt <= endOfDay(day),
+    )
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .map(materializeFood);
 }
 
-export async function listRecentFood(
-  userId: string,
-  limit = 50,
-): Promise<FoodEntry[]> {
-  const rows = await db.entry.findMany({
-    where: { userId, kind: "FOOD" },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
-  return rows.map(materializeFood);
+export async function listRecentFood(limit = 50): Promise<FoodEntry[]> {
+  const rows = await getLocalDb()
+    .entries.where("kind")
+    .equals("FOOD")
+    .toArray();
+  return rows
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit)
+    .map(materializeFood);
 }
 
 export interface FoodSummary {
@@ -39,22 +37,18 @@ export interface FoodSummary {
 }
 
 export async function getFoodSummary(
-  userId: string,
-  now: Date = new Date(),
+  current: Date = new Date(),
 ): Promise<FoodSummary> {
-  const today = await listFoodForDay(userId, now);
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - 6);
+  const today = await listFoodForDay(current);
+  const weekStart = new Date(current);
+  weekStart.setDate(current.getDate() - 6);
   weekStart.setHours(0, 0, 0, 0);
 
-  const weekRows = await db.entry.findMany({
-    where: {
-      userId,
-      kind: "FOOD",
-      createdAt: { gte: weekStart, lte: endOfDay(now) },
-    },
-    select: { data: true },
-  });
+  const weekRows = (
+    await getLocalDb().entries.where("kind").equals("FOOD").toArray()
+  ).filter(
+    (r) => r.createdAt >= weekStart && r.createdAt <= endOfDay(current),
+  );
   const weekJunk = weekRows.filter(
     (r) => (r.data as { isJunk?: boolean })?.isJunk === true,
   ).length;

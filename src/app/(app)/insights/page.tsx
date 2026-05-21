@@ -1,4 +1,6 @@
-import { auth } from "@/lib/auth";
+"use client";
+
+import { useLiveQuery } from "dexie-react-hooks";
 import { getInsights } from "@/features/insights/queries";
 import { WeekdayBars } from "@/features/insights/components/WeekdayBars";
 import { TopTags } from "@/features/insights/components/TopTags";
@@ -8,11 +10,9 @@ import { WorkoutWeekdays } from "@/features/insights/components/WorkoutWeekdays"
 import { BodyTrendBars } from "@/features/insights/components/BodyTrendBars";
 import { EmptyHint } from "@/components/EmptyHint";
 
-export default async function InsightsPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
-  const data = await getInsights(session.user.id);
+export default function InsightsPage() {
+  const data = useLiveQuery(() => getInsights());
+  if (data === undefined) return null;
 
   return (
     <main className="flex-1 mx-auto w-full max-w-2xl px-6 py-10">

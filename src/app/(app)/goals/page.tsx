@@ -1,14 +1,15 @@
-import { auth } from "@/lib/auth";
+"use client";
+
+import { useLiveQuery } from "dexie-react-hooks";
 import { listGoalsWithProgress } from "@/features/goals/queries";
 import { GoalComposer } from "@/features/goals/components/GoalComposer";
 import { GoalCard } from "@/features/goals/components/GoalCard";
 import { EmptyHint } from "@/components/EmptyHint";
 
-export default async function GoalsPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+export default function GoalsPage() {
+  const goals = useLiveQuery(() => listGoalsWithProgress());
+  if (goals === undefined) return null;
 
-  const goals = await listGoalsWithProgress(session.user.id);
   const active = goals.filter((g) => g.status === "ACTIVE");
   const achieved = goals.filter((g) => g.status === "ACHIEVED");
 
@@ -24,7 +25,8 @@ export default async function GoalsPage() {
           )}
         </div>
         <p className="text-muted-foreground text-sm mt-1">
-          What you're working toward. Tag journal entries and to-dos to track progress.
+          What you&rsquo;re working toward. Tag journal entries and to-dos to
+          track progress.
         </p>
       </header>
 

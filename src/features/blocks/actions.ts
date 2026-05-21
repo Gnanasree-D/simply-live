@@ -1,10 +1,5 @@
-"use server";
-
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { genId, getLocalDb, now } from "@/lib/local-db";
 
 export interface BlockState {
   ok?: boolean;
@@ -30,9 +25,6 @@ export async function createBlock(
   _prev: BlockState,
   formData: FormData,
 ): Promise<BlockState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = BlockFormSchema.safeParse({
     title: formData.get("title"),
     date: formData.get("date"),
@@ -54,22 +46,20 @@ export async function createBlock(
   const end = buildDate(parsed.data.date, parsed.data.endTime);
   if (end <= start) return { error: "End must be after start" };
 
-  await db.entry.create({
+  const t = now();
+  await getLocalDb().entries.add({
+    id: genId(),
+    kind: "BLOCK",
     data: {
-      userId: session.user.id,
-      kind: "BLOCK",
-      data: {
-        title: parsed.data.title,
-        start: start.toISOString(),
-        end: end.toISOString(),
-      },
-      tags: [],
-      goalRefs: [],
+      title: parsed.data.title,
+      start: start.toISOString(),
+      end: end.toISOString(),
     },
+    tags: [],
+    goalRefs: [],
+    createdAt: t,
+    updatedAt: t,
   });
-
-  revalidatePath("/timetable");
-  revalidatePath("/today");
   return { ok: true };
 }
 
@@ -77,9 +67,6 @@ export async function updateBlock(
   _prev: BlockState,
   formData: FormData,
 ): Promise<BlockState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = UpdateBlockSchema.safeParse({
     id: formData.get("id"),
     title: formData.get("title"),
@@ -87,48 +74,31 @@ export async function updateBlock(
     startTime: formData.get("startTime"),
     endTime: formData.get("endTime"),
   });
-  if (!parsed.success) {
-    return { error: "Invalid input" };
-  }
+  if (!parsed.success) return { error: "Invalid input" };
 
-  const row = await db.entry.findFirst({
-    where: { id: parsed.data.id, userId: session.user.id, kind: "BLOCK" },
-  });
-  if (!row) return { error: "Block not found" };
+  const db = getLocalDb();
+  const row = await db.entries.get(parsed.data.id);
+  if (!row || row.kind !== "BLOCK") return { error: "Block not found" };
 
   const start = buildDate(parsed.data.date, parsed.data.startTime);
   const end = buildDate(parsed.data.date, parsed.data.endTime);
   if (end <= start) return { error: "End must be after start" };
 
   const existing = (row.data ?? {}) as Record<string, unknown>;
-  await db.entry.update({
-    where: { id: parsed.data.id },
+  await db.entries.update(parsed.data.id, {
     data: {
-      data: {
-        ...existing,
-        title: parsed.data.title,
-        start: start.toISOString(),
-        end: end.toISOString(),
-      },
+      ...existing,
+      title: parsed.data.title,
+      start: start.toISOString(),
+      end: end.toISOString(),
     },
+    updatedAt: now(),
   });
-
-  revalidatePath("/timetable");
-  revalidatePath("/today");
   return { ok: true };
 }
 
 export async function deleteBlock(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  await db.entry.deleteMany({
-    where: { id, userId: session.user.id, kind: "BLOCK" },
-  });
-
-  revalidatePath("/timetable");
-  revalidatePath("/today");
+  await getLocalDb().entries.delete(id);
 }

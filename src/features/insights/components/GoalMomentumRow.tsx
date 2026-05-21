@@ -20,7 +20,7 @@ export function GoalMomentumRow({ goal }: { goal: GoalMomentum }) {
   const max = Math.max(...goal.weeklyCounts, 1);
   return (
     <Link
-      href={`/goals/${goal.id}`}
+      href={`/goals/detail?id=${goal.id}`}
       className="flex items-center gap-4 px-4 py-3 hover:bg-muted/40 transition-colors"
     >
       <div className="flex-1 min-w-0">

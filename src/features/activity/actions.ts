@@ -1,11 +1,6 @@
-"use server";
-
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { startOfDay, endOfDay } from "@/core/time/day";
+import { genId, getLocalDb, now } from "@/lib/local-db";
+import { endOfDay, startOfDay } from "@/core/time/day";
 
 export interface ActivityState {
   ok?: boolean;
@@ -22,34 +17,23 @@ const StepsSchema = z.object({
   count: z.coerce.number().int().min(0).max(200000),
 });
 
-function revalidateActivity() {
-  revalidatePath("/activity");
-  revalidatePath("/today");
-}
-
 export async function logWater() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
-  await db.entry.create({
-    data: {
-      userId: session.user.id,
-      kind: "ACTIVITY",
-      data: { subtype: "water", cups: 1 },
-      tags: [],
-      goalRefs: [],
-    },
+  const t = now();
+  await getLocalDb().entries.add({
+    id: genId(),
+    kind: "ACTIVITY",
+    data: { subtype: "water", cups: 1 },
+    tags: [],
+    goalRefs: [],
+    createdAt: t,
+    updatedAt: t,
   });
-  revalidateActivity();
 }
 
 export async function logWorkout(
   _prev: ActivityState,
   formData: FormData,
 ): Promise<ActivityState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = WorkoutSchema.safeParse({
     title: formData.get("title"),
     durationMins: formData.get("durationMins"),
@@ -63,22 +47,21 @@ export async function logWorkout(
         "Invalid workout",
     };
   }
-
-  await db.entry.create({
+  const t = now();
+  await getLocalDb().entries.add({
+    id: genId(),
+    kind: "ACTIVITY",
     data: {
-      userId: session.user.id,
-      kind: "ACTIVITY",
-      data: {
-        subtype: "workout",
-        title: parsed.data.title,
-        durationMins: parsed.data.durationMins,
-        notes: parsed.data.notes,
-      },
-      tags: [],
-      goalRefs: [],
+      subtype: "workout",
+      title: parsed.data.title,
+      durationMins: parsed.data.durationMins,
+      notes: parsed.data.notes,
     },
+    tags: [],
+    goalRefs: [],
+    createdAt: t,
+    updatedAt: t,
   });
-  revalidateActivity();
   return { ok: true };
 }
 
@@ -86,53 +69,36 @@ export async function setSteps(
   _prev: ActivityState,
   formData: FormData,
 ): Promise<ActivityState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = StepsSchema.safeParse({ count: formData.get("count") });
   if (!parsed.success) return { error: "Steps must be a non-negative number" };
 
-  const now = new Date();
-  const dayStart = startOfDay(now);
-  const dayEnd = endOfDay(now);
-
-  // Upsert by deleting today's existing step entries and creating a new one.
-  const existing = await db.entry.findMany({
-    where: {
-      userId: session.user.id,
-      kind: "ACTIVITY",
-      createdAt: { gte: dayStart, lte: dayEnd },
-    },
-  });
-  const existingStepIds = existing
+  const db = getLocalDb();
+  const t = now();
+  const dayStart = startOfDay(t);
+  const dayEnd = endOfDay(t);
+  const todays = (
+    await db.entries.where("kind").equals("ACTIVITY").toArray()
+  ).filter((e) => e.createdAt >= dayStart && e.createdAt <= dayEnd);
+  const existingStepIds = todays
     .filter((e) => (e.data as { subtype?: string })?.subtype === "steps")
     .map((e) => e.id);
   if (existingStepIds.length > 0) {
-    await db.entry.deleteMany({ where: { id: { in: existingStepIds } } });
+    await db.entries.bulkDelete(existingStepIds);
   }
-
-  await db.entry.create({
-    data: {
-      userId: session.user.id,
-      kind: "ACTIVITY",
-      data: { subtype: "steps", count: parsed.data.count },
-      tags: [],
-      goalRefs: [],
-    },
+  await db.entries.add({
+    id: genId(),
+    kind: "ACTIVITY",
+    data: { subtype: "steps", count: parsed.data.count },
+    tags: [],
+    goalRefs: [],
+    createdAt: t,
+    updatedAt: t,
   });
-  revalidateActivity();
   return { ok: true };
 }
 
 export async function deleteActivity(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  await db.entry.deleteMany({
-    where: { id, userId: session.user.id, kind: "ACTIVITY" },
-  });
-  revalidateActivity();
+  await getLocalDb().entries.delete(id);
 }

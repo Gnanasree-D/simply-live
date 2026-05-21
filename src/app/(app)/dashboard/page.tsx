@@ -1,4 +1,6 @@
-import { auth } from "@/lib/auth";
+"use client";
+
+import { useLiveQuery } from "dexie-react-hooks";
 import { getDashboardData } from "@/features/dashboard/queries";
 import { ActivityHeatmap } from "@/features/dashboard/components/ActivityHeatmap";
 import { HabitSparkRow } from "@/features/dashboard/components/HabitSparkRow";
@@ -6,11 +8,9 @@ import { GoalActivityRow } from "@/features/dashboard/components/GoalActivityRow
 import { BodyTrendRows } from "@/features/dashboard/components/BodyTrendRows";
 import { EmptyHint } from "@/components/EmptyHint";
 
-export default async function DashboardPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
-  const data = await getDashboardData(session.user.id);
+export default function DashboardPage() {
+  const data = useLiveQuery(() => getDashboardData());
+  if (data === undefined) return null;
 
   return (
     <main className="flex-1 mx-auto w-full max-w-2xl px-6 py-10">

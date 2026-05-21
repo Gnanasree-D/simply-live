@@ -1,11 +1,6 @@
-"use server";
-
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { filterUserGoalIds } from "@/features/goals/actions";
+import { genId, getLocalDb, now } from "@/lib/local-db";
+import { filterGoalIds } from "@/features/goals/actions";
 
 export interface TodoState {
   ok?: boolean;
@@ -36,9 +31,6 @@ export async function createTodo(
   _prev: TodoState,
   formData: FormData,
 ): Promise<TodoState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = TitleDueSchema.safeParse({
     title: formData.get("title"),
     due: formData.get("due"),
@@ -49,27 +41,21 @@ export async function createTodo(
     };
   }
 
-  const goalRefs = await filterUserGoalIds(
-    session.user.id,
-    parseGoalRefs(formData),
-  );
-
-  await db.entry.create({
+  const goalRefs = await filterGoalIds(parseGoalRefs(formData));
+  const t = now();
+  await getLocalDb().entries.add({
+    id: genId(),
+    kind: "TODO",
     data: {
-      userId: session.user.id,
-      kind: "TODO",
-      data: {
-        title: parsed.data.title,
-        done: false,
-        due: parsed.data.due?.toISOString() ?? null,
-      },
-      tags: [],
-      goalRefs,
+      title: parsed.data.title,
+      done: false,
+      due: parsed.data.due?.toISOString() ?? null,
     },
+    tags: [],
+    goalRefs,
+    createdAt: t,
+    updatedAt: t,
   });
-  revalidatePath("/todos");
-  revalidatePath("/today");
-  revalidatePath("/goals");
   return { ok: true };
 }
 
@@ -77,9 +63,6 @@ export async function updateTodo(
   _prev: TodoState,
   formData: FormData,
 ): Promise<TodoState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = UpdateTodoFormSchema.safeParse({
     id: formData.get("id"),
     title: formData.get("title"),
@@ -91,70 +74,39 @@ export async function updateTodo(
     };
   }
 
-  const row = await db.entry.findFirst({
-    where: { id: parsed.data.id, userId: session.user.id, kind: "TODO" },
-  });
-  if (!row) return { error: "To-do not found" };
+  const db = getLocalDb();
+  const row = await db.entries.get(parsed.data.id);
+  if (!row || row.kind !== "TODO") return { error: "To-do not found" };
 
-  const goalRefs = await filterUserGoalIds(
-    session.user.id,
-    parseGoalRefs(formData),
-  );
-
+  const goalRefs = await filterGoalIds(parseGoalRefs(formData));
   const existing = (row.data ?? {}) as Record<string, unknown>;
-  await db.entry.update({
-    where: { id: parsed.data.id },
+  await db.entries.update(parsed.data.id, {
     data: {
-      data: {
-        ...existing,
-        title: parsed.data.title,
-        due: parsed.data.due?.toISOString() ?? null,
-      },
-      goalRefs,
+      ...existing,
+      title: parsed.data.title,
+      due: parsed.data.due?.toISOString() ?? null,
     },
+    goalRefs,
+    updatedAt: now(),
   });
-
-  revalidatePath("/todos");
-  revalidatePath("/today");
-  revalidatePath("/goals");
   return { ok: true };
 }
 
 export async function toggleTodoDone(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  const row = await db.entry.findFirst({
-    where: { id, userId: session.user.id, kind: "TODO" },
-  });
-  if (!row) return;
-
+  const db = getLocalDb();
+  const row = await db.entries.get(id);
+  if (!row || row.kind !== "TODO") return;
   const data = (row.data ?? {}) as Record<string, unknown>;
-  await db.entry.update({
-    where: { id },
-    data: { data: { ...data, done: !data.done } },
+  await db.entries.update(id, {
+    data: { ...data, done: !data.done },
+    updatedAt: now(),
   });
-
-  revalidatePath("/todos");
-  revalidatePath("/today");
-  revalidatePath("/goals");
 }
 
 export async function deleteTodo(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  await db.entry.deleteMany({
-    where: { id, userId: session.user.id, kind: "TODO" },
-  });
-
-  revalidatePath("/todos");
-  revalidatePath("/today");
-  revalidatePath("/goals");
+  await getLocalDb().entries.delete(id);
 }

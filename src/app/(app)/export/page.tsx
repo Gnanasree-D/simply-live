@@ -1,12 +1,12 @@
-import { auth } from "@/lib/auth";
+"use client";
+
+import { useLiveQuery } from "dexie-react-hooks";
 import { getExportSummary } from "@/features/export/queries";
 import { ExportDownloadCard } from "@/features/export/components/ExportDownloadCard";
 
-export default async function ExportPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
-  const summary = await getExportSummary(session.user.id);
+export default function ExportPage() {
+  const summary = useLiveQuery(() => getExportSummary());
+  if (summary === undefined) return null;
 
   const rows: { label: string; count: number }[] = [
     { label: "Habits", count: summary.habits },
@@ -20,7 +20,7 @@ export default async function ExportPage() {
           Export
         </p>
         <h1 className="mt-3 font-serif text-3xl leading-tight">
-          A snapshot of how you're showing up.
+          A snapshot of how you&rsquo;re showing up.
         </h1>
         <p className="mt-3 text-muted-foreground text-sm">
           Download a consistency report — your habits and goals visualized over

@@ -1,15 +1,12 @@
-"use server";
-
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { genId, getLocalDb, now } from "@/lib/local-db";
 import { getWeekDays, startOfWeek } from "@/core/time/day";
 
 export interface ReviewState {
   ok?: boolean;
   error?: string;
+  /** When set, the caller should navigate to this path. */
+  redirectTo?: string;
 }
 
 const ReviewFormSchema = z.object({
@@ -23,9 +20,6 @@ export async function createWeeklyReview(
   _prev: ReviewState,
   formData: FormData,
 ): Promise<ReviewState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = ReviewFormSchema.safeParse({
     wins: formData.get("wins") ?? "",
     challenges: formData.get("challenges") ?? "",
@@ -46,8 +40,8 @@ export async function createWeeklyReview(
     return { error: "Fill in at least one section before saving" };
   }
 
-  const now = new Date();
-  const weekStart = startOfWeek(now);
+  const t = now();
+  const weekStart = startOfWeek(t);
   const weekEnd = getWeekDays(weekStart)[6];
   const dateRange = formatRange(weekStart, weekEnd);
 
@@ -59,19 +53,16 @@ export async function createWeeklyReview(
 
   const body = `WEEKLY REVIEW\n${dateRange}\n\n${sections.join("\n\n")}`;
 
-  await db.entry.create({
-    data: {
-      userId: session.user.id,
-      kind: "JOURNAL",
-      data: { body, template: "weekly-review" },
-      tags: ["weekly-review"],
-      goalRefs: [],
-    },
+  await getLocalDb().entries.add({
+    id: genId(),
+    kind: "JOURNAL",
+    data: { body, template: "weekly-review" },
+    tags: ["weekly-review"],
+    goalRefs: [],
+    createdAt: t,
+    updatedAt: t,
   });
-
-  revalidatePath("/journal");
-  revalidatePath("/today");
-  redirect("/journal");
+  return { ok: true, redirectTo: "/journal" };
 }
 
 function formatRange(start: Date, end: Date): string {

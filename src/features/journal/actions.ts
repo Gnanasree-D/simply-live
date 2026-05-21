@@ -1,12 +1,7 @@
-"use server";
-
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { MoodSchema } from "@/core/entry/schema";
-import { filterUserGoalIds } from "@/features/goals/actions";
+import { genId, getLocalDb, now } from "@/lib/local-db";
+import { filterGoalIds } from "@/features/goals/actions";
 
 export interface JournalState {
   ok?: boolean;
@@ -34,38 +29,27 @@ export async function createJournalEntry(
   _prev: JournalState,
   formData: FormData,
 ): Promise<JournalState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = BodyMoodSchema.safeParse({
     body: formData.get("body"),
     mood: formData.get("mood"),
   });
   if (!parsed.success) {
     return {
-      error:
-        parsed.error.flatten().fieldErrors.body?.[0] ?? "Invalid input",
+      error: parsed.error.flatten().fieldErrors.body?.[0] ?? "Invalid input",
     };
   }
 
-  const goalRefs = await filterUserGoalIds(
-    session.user.id,
-    parseGoalRefs(formData),
-  );
-
-  await db.entry.create({
-    data: {
-      userId: session.user.id,
-      kind: "JOURNAL",
-      data: { body: parsed.data.body, mood: parsed.data.mood ?? null },
-      tags: [],
-      goalRefs,
-    },
+  const goalRefs = await filterGoalIds(parseGoalRefs(formData));
+  const t = now();
+  await getLocalDb().entries.add({
+    id: genId(),
+    kind: "JOURNAL",
+    data: { body: parsed.data.body, mood: parsed.data.mood ?? null },
+    tags: [],
+    goalRefs,
+    createdAt: t,
+    updatedAt: t,
   });
-
-  revalidatePath("/journal");
-  revalidatePath("/today");
-  revalidatePath("/goals");
   return { ok: true };
 }
 
@@ -73,9 +57,6 @@ export async function updateJournalEntry(
   _prev: JournalState,
   formData: FormData,
 ): Promise<JournalState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const parsed = UpdateJournalFormSchema.safeParse({
     id: formData.get("id"),
     body: formData.get("body"),
@@ -83,52 +64,30 @@ export async function updateJournalEntry(
   });
   if (!parsed.success) {
     return {
-      error:
-        parsed.error.flatten().fieldErrors.body?.[0] ?? "Invalid input",
+      error: parsed.error.flatten().fieldErrors.body?.[0] ?? "Invalid input",
     };
   }
 
-  const row = await db.entry.findFirst({
-    where: { id: parsed.data.id, userId: session.user.id, kind: "JOURNAL" },
-  });
-  if (!row) return { error: "Entry not found" };
+  const db = getLocalDb();
+  const row = await db.entries.get(parsed.data.id);
+  if (!row || row.kind !== "JOURNAL") return { error: "Entry not found" };
 
-  const goalRefs = await filterUserGoalIds(
-    session.user.id,
-    parseGoalRefs(formData),
-  );
-
+  const goalRefs = await filterGoalIds(parseGoalRefs(formData));
   const existing = (row.data ?? {}) as Record<string, unknown>;
-  await db.entry.update({
-    where: { id: parsed.data.id },
+  await db.entries.update(parsed.data.id, {
     data: {
-      data: {
-        ...existing,
-        body: parsed.data.body,
-        mood: parsed.data.mood ?? null,
-      },
-      goalRefs,
+      ...existing,
+      body: parsed.data.body,
+      mood: parsed.data.mood ?? null,
     },
+    goalRefs,
+    updatedAt: now(),
   });
-
-  revalidatePath("/journal");
-  revalidatePath("/today");
-  revalidatePath("/goals");
   return { ok: true };
 }
 
 export async function deleteJournalEntry(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
-
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-
-  await db.entry.deleteMany({
-    where: { id, userId: session.user.id, kind: "JOURNAL" },
-  });
-
-  revalidatePath("/journal");
-  revalidatePath("/today");
-  revalidatePath("/goals");
+  await getLocalDb().entries.delete(id);
 }

@@ -1,11 +1,9 @@
-import { auth } from "@/lib/auth";
+"use client";
+
 import { WeeklyReviewForm } from "@/features/review/components/WeeklyReviewForm";
 import { getWeekDays, startOfWeek } from "@/core/time/day";
 
-export default async function ReviewPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
+export default function ReviewPage() {
   const now = new Date();
   const weekStart = startOfWeek(now);
   const weekEnd = getWeekDays(weekStart)[6];

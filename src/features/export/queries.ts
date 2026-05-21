@@ -1,5 +1,4 @@
-import "server-only";
-import { db } from "@/lib/db";
+import { getLocalDb, type EntryRow } from "@/lib/local-db";
 import { materializeJournal } from "@/features/journal/mappers";
 import { materializeTodo } from "@/features/todos/mappers";
 import { materializeBlock } from "@/features/blocks/mappers";
@@ -12,20 +11,12 @@ import type {
 } from "@/core/entry/schema";
 import type { ExportBundle } from "@/core/export/bundle";
 
-function materializeGoalNote(row: {
-  id: string;
-  userId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  tags: string[];
-  goalRefs: string[];
-  data: unknown;
-}): GoalNoteEntry {
+function materializeGoalNote(row: EntryRow): GoalNoteEntry {
   const data = (row.data ?? {}) as { goalId?: string; body?: string };
   return {
     kind: "goal-note",
     id: row.id,
-    userId: row.userId,
+    userId: "",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     tags: row.tags,
@@ -35,11 +26,7 @@ function materializeGoalNote(row: {
   };
 }
 
-function materializeHabitEntry(row: {
-  id: string;
-  createdAt: Date;
-  data: unknown;
-}): HabitEntry | null {
+function materializeHabitEntry(row: EntryRow): HabitEntry | null {
   const data = (row.data ?? {}) as { habitId?: string; note?: string };
   if (!data.habitId) return null;
   return {
@@ -56,26 +43,26 @@ function materializeHabitEntry(row: {
   };
 }
 
-export async function loadExportBundle(
-  userId: string,
-  userEmail: string,
-): Promise<ExportBundle> {
-  const [user, entries, goals, habits] = await Promise.all([
-    db.user.findUnique({ where: { id: userId }, select: { email: true } }),
-    db.entry.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    }),
-    db.goal.findMany({
-      where: { userId },
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-    }),
-    db.habit.findMany({
-      where: { userId },
-      include: { category: { select: { name: true } } },
-      orderBy: { createdAt: "asc" },
-    }),
+export async function loadExportBundle(): Promise<ExportBundle> {
+  const db = getLocalDb();
+  const [entriesRaw, goalsRaw, habitsRaw, categoriesRaw] = await Promise.all([
+    db.entries.toArray(),
+    db.goals.toArray(),
+    db.habits.toArray(),
+    db.habitCategories.toArray(),
   ]);
+
+  const entries = [...entriesRaw].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
+  const goals = [...goalsRaw].sort((a, b) => {
+    if (a.status !== b.status) return a.status.localeCompare(b.status);
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  });
+  const habits = [...habitsRaw].sort(
+    (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+  );
+  const catById = new Map(categoriesRaw.map((c) => [c.id, c]));
 
   const journals = entries
     .filter((e) => e.kind === "JOURNAL")
@@ -107,7 +94,7 @@ export async function loadExportBundle(
 
   return {
     exportedAt: new Date(),
-    userEmail: user?.email ?? userEmail,
+    userEmail: "",
     journals,
     todos,
     blocks,
@@ -129,7 +116,7 @@ export async function loadExportBundle(
       cadence: h.cadence,
       weekdays: h.weekdays,
       intervalDays: h.intervalDays,
-      categoryName: h.category?.name ?? null,
+      categoryName: h.categoryId ? catById.get(h.categoryId)?.name ?? null : null,
       archived: h.archived,
       createdAt: h.createdAt,
       completions: completionsByHabit.get(h.id) ?? [],
@@ -147,20 +134,24 @@ export interface ExportSummary {
   totalEntries: number;
 }
 
-export async function getExportSummary(userId: string): Promise<ExportSummary> {
-  const [journals, todos, habits, goals, blocks, goalNotes] = await Promise.all([
-    db.entry.count({ where: { userId, kind: "JOURNAL" } }),
-    db.entry.count({ where: { userId, kind: "TODO" } }),
-    db.habit.count({ where: { userId } }),
-    db.goal.count({ where: { userId } }),
-    db.entry.count({ where: { userId, kind: "BLOCK" } }),
-    db.entry.count({ where: { userId, kind: "GOAL_NOTE" } }),
+export async function getExportSummary(): Promise<ExportSummary> {
+  const db = getLocalDb();
+  const [entries, habitsCount, goalsCount] = await Promise.all([
+    db.entries.toArray(),
+    db.habits.count(),
+    db.goals.count(),
   ]);
+  const byKind = (k: EntryRow["kind"]) =>
+    entries.filter((e) => e.kind === k).length;
+  const journals = byKind("JOURNAL");
+  const todos = byKind("TODO");
+  const blocks = byKind("BLOCK");
+  const goalNotes = byKind("GOAL_NOTE");
   return {
     journals,
     todos,
-    habits,
-    goals,
+    habits: habitsCount,
+    goals: goalsCount,
     blocks,
     goalNotes,
     totalEntries: journals + todos + blocks + goalNotes,

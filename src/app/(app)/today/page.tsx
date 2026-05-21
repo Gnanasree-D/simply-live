@@ -1,6 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Droplet, Dumbbell, Footprints, Utensils } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { useLiveQuery } from "dexie-react-hooks";
 import { listJournalEntries } from "@/features/journal/queries";
 import { JournalEntryCard } from "@/features/journal/components/JournalEntryCard";
 import { listTodos } from "@/features/todos/queries";
@@ -18,41 +20,34 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { endOfDay, isSameDay, startOfDay, todayKey } from "@/core/time/day";
 import { EmptyHint } from "@/components/EmptyHint";
 
-export default async function TodayPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
+export default function TodayPage() {
   const now = new Date();
-  const [
-    todays,
-    allTodos,
-    habits,
-    categories,
-    goals,
-    blocks,
-    activity,
-    foods,
-  ] = await Promise.all([
-    listJournalEntries(session.user.id, {
-      since: startOfDay(now),
-      until: endOfDay(now),
-    }),
-    listTodos(session.user.id),
-    listHabitsWithStreaks(session.user.id),
-    listHabitCategories(session.user.id),
-    listActiveGoalsLight(session.user.id),
-    listBlocksForDay(session.user.id, now),
-    getDailyActivitySummary(session.user.id, now),
-    listFoodForDay(session.user.id, now),
-  ]);
-  const junkCount = foods.filter((f) => f.isJunk).length;
-  const hasActivity =
-    activity.waterCups > 0 ||
-    activity.steps > 0 ||
-    activity.workoutCount > 0;
+  const since = startOfDay(now);
+  const until = endOfDay(now);
+
+  const todays = useLiveQuery(() => listJournalEntries({ since, until }));
+  const allTodos = useLiveQuery(() => listTodos());
+  const habits = useLiveQuery(() => listHabitsWithStreaks());
+  const categories = useLiveQuery(() => listHabitCategories());
+  const goals = useLiveQuery(() => listActiveGoalsLight());
+  const blocks = useLiveQuery(() => listBlocksForDay(now));
+  const activity = useLiveQuery(() => getDailyActivitySummary(now));
+  const foods = useLiveQuery(() => listFoodForDay(now));
+
+  if (
+    todays === undefined ||
+    allTodos === undefined ||
+    habits === undefined ||
+    categories === undefined ||
+    goals === undefined ||
+    blocks === undefined ||
+    activity === undefined ||
+    foods === undefined
+  ) {
+    return null;
+  }
 
   const dayStart = startOfDay(now);
-  // Exclude milestones (todos linked to a goal) — those belong on the goal page.
   const todaysTodos = allTodos.filter((t) => {
     if (t.goalRefs.length > 0) return false;
     if (isSameDay(t.createdAt, now)) return true;
@@ -66,6 +61,11 @@ export default async function TodayPage() {
   const doneTodos = todaysTodos.filter((t) => t.done);
   const todaysHabits = habits.filter((h) => h.expectedToday);
   const habitsDone = todaysHabits.filter((h) => h.doneToday).length;
+  const junkCount = foods.filter((f) => f.isJunk).length;
+  const hasActivity =
+    activity.waterCups > 0 ||
+    activity.steps > 0 ||
+    activity.workoutCount > 0;
 
   const dateLabel = now.toLocaleDateString(undefined, {
     weekday: "long",

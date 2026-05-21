@@ -1,5 +1,4 @@
-import "server-only";
-import { db } from "@/lib/db";
+import { getLocalDb, type HabitRow } from "@/lib/local-db";
 import { computeStreak } from "@/core/streaks/compute";
 import { daysBetween, isSameDay } from "@/core/time/day";
 
@@ -39,45 +38,46 @@ function isExpectedToday(
   return isDaily || weekdays.includes(now.getDay());
 }
 
-export async function listHabitsWithStreaks(
-  userId: string,
-): Promise<HabitWithStreak[]> {
-  const [habits, entries] = await Promise.all([
-    db.habit.findMany({
-      where: { userId, archived: false },
-      include: { category: { select: { id: true, name: true } } },
-      orderBy: { createdAt: "asc" },
+export async function listHabitsWithStreaks(): Promise<HabitWithStreak[]> {
+  const db = getLocalDb();
+  const [habits, categories, habitEntries] = await Promise.all([
+    db.habits.where("archived").equals(0).toArray().catch(async () => {
+      // Dexie doesn't index booleans cleanly; fallback to filter
+      const all = await db.habits.toArray();
+      return all.filter((h) => !h.archived);
     }),
-    db.entry.findMany({
-      where: { userId, kind: "HABIT" },
-      orderBy: { createdAt: "asc" },
-      select: { id: true, createdAt: true, data: true },
-    }),
+    db.habitCategories.toArray(),
+    db.entries.where("kind").equals("HABIT").toArray(),
   ]);
 
+  habits.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  habitEntries.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+  const catById = new Map(categories.map((c) => [c.id, c]));
   const now = new Date();
   const byHabit = new Map<string, Date[]>();
-  for (const e of entries) {
+  for (const e of habitEntries) {
     const habitId = (e.data as { habitId?: string })?.habitId;
     if (!habitId) continue;
     if (!byHabit.has(habitId)) byHabit.set(habitId, []);
     byHabit.get(habitId)!.push(e.createdAt);
   }
 
-  return habits.map((h) => {
+  return habits.map((h: HabitRow) => {
     const dates = byHabit.get(h.id) ?? [];
     const streak = computeStreak(dates, {
       now,
       weekdays: h.weekdays,
       intervalDays: h.intervalDays ?? undefined,
     });
+    const cat = h.categoryId ? catById.get(h.categoryId) ?? null : null;
     return {
       id: h.id,
       title: h.title,
       cadence: h.cadence,
       weekdays: h.weekdays,
       intervalDays: h.intervalDays,
-      category: h.category,
+      category: cat ? { id: cat.id, name: cat.name } : null,
       createdAt: h.createdAt,
       updatedAt: h.updatedAt,
       currentStreak: streak.current,
@@ -88,12 +88,9 @@ export async function listHabitsWithStreaks(
   });
 }
 
-export async function listHabitCategories(
-  userId: string,
-): Promise<HabitCategoryView[]> {
-  return db.habitCategory.findMany({
-    where: { userId },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+export async function listHabitCategories(): Promise<HabitCategoryView[]> {
+  const rows = await getLocalDb().habitCategories.toArray();
+  return rows
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => ({ id: c.id, name: c.name }));
 }

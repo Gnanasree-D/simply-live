@@ -1,20 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { useLiveQuery } from "dexie-react-hooks";
 import { listJournalEntries } from "@/features/journal/queries";
 import { JournalComposer } from "@/features/journal/components/JournalComposer";
 import { JournalEntryCard } from "@/features/journal/components/JournalEntryCard";
 import { listActiveGoalsLight } from "@/features/goals/queries";
 import { EmptyHint } from "@/components/EmptyHint";
 
-export default async function JournalPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+export default function JournalPage() {
+  const entries = useLiveQuery(() => listJournalEntries({ limit: 50 }));
+  const goals = useLiveQuery(() => listActiveGoalsLight());
 
-  const [entries, goals] = await Promise.all([
-    listJournalEntries(session.user.id, { limit: 50 }),
-    listActiveGoalsLight(session.user.id),
-  ]);
+  if (entries === undefined || goals === undefined) return null;
 
   return (
     <main className="flex-1 mx-auto w-full max-w-2xl px-6 py-10">

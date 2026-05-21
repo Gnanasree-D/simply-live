@@ -115,7 +115,7 @@ export function GoalCard({ goal }: { goal: GoalWithProgress }) {
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <Link
-            href={`/goals/${goal.id}`}
+            href={`/goals/detail?id=${goal.id}`}
             className={cn(
               "font-serif text-lg leading-tight hover:underline underline-offset-4",
               optimisticAchieved && "line-through text-muted-foreground",

@@ -723,7 +723,7 @@ function MilestoneListPdf({ report }: { report: GoalReport }) {
           <Text
             style={[
               styles.milestoneNumber,
-              m.done && styles.milestoneNumberDone,
+              ...(m.done ? [styles.milestoneNumberDone] : []),
             ]}
           >
             {m.done ? "✓" : String(m.number).padStart(2, "0")}
@@ -731,7 +731,7 @@ function MilestoneListPdf({ report }: { report: GoalReport }) {
           <Text
             style={[
               styles.milestoneTitle,
-              m.done && styles.milestoneDone,
+              ...(m.done ? [styles.milestoneDone] : []),
             ]}
           >
             {m.title}
@@ -740,7 +740,7 @@ function MilestoneListPdf({ report }: { report: GoalReport }) {
             <Text
               style={[
                 styles.milestoneDue,
-                m.overdue && styles.milestoneOverdue,
+                ...(m.overdue ? [styles.milestoneOverdue] : []),
               ]}
             >
               {m.overdue ? "Overdue · " : "Due "}
@@ -984,7 +984,7 @@ function BodyStat({
       <Text
         style={[
           styles.bodyStatSub,
-          subColor ? { color: subColor } : null,
+          ...(subColor ? [{ color: subColor }] : []),
         ]}
       >
         {sub}

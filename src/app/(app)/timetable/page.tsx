@@ -1,6 +1,10 @@
+"use client";
+
+import { Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { useLiveQuery } from "dexie-react-hooks";
 import { listBlocksForRange } from "@/features/blocks/queries";
 import { WeekGrid } from "@/features/blocks/components/WeekGrid";
 import {
@@ -10,28 +14,21 @@ import {
   toInputDate,
 } from "@/core/time/day";
 
-export default async function TimetablePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ date?: string }>;
-}) {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
-  const { date: dateParam } = await searchParams;
-  const refDate = dateParam
-    ? new Date(`${dateParam}T00:00:00`)
-    : new Date();
+function TimetableInner() {
+  const params = useSearchParams();
+  const dateParam = params.get("date");
+  const refDate = dateParam ? new Date(`${dateParam}T00:00:00`) : new Date();
 
   const weekStart = startOfWeek(refDate);
   const weekDays = getWeekDays(weekStart);
   const weekEnd = endOfDay(weekDays[6]);
 
-  const blocks = await listBlocksForRange(
-    session.user.id,
-    weekStart,
-    weekEnd,
+  const blocks = useLiveQuery(
+    () => listBlocksForRange(weekStart, weekEnd),
+    [weekStart.getTime(), weekEnd.getTime()],
   );
+
+  if (blocks === undefined) return null;
 
   const now = new Date();
   const isCurrentWeek = now >= weekStart && now <= weekEnd;
@@ -80,6 +77,14 @@ export default async function TimetablePage({
 
       <WeekGrid weekDays={weekDays} blocks={blocks} />
     </main>
+  );
+}
+
+export default function TimetablePage() {
+  return (
+    <Suspense fallback={null}>
+      <TimetableInner />
+    </Suspense>
   );
 }
 

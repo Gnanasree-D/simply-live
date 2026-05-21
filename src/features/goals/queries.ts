@@ -1,6 +1,4 @@
-import "server-only";
-import { db } from "@/lib/db";
-import type { Entry } from "@/core/entry/schema";
+import { getLocalDb } from "@/lib/local-db";
 import { materializeJournal } from "@/features/journal/mappers";
 import { materializeTodo } from "@/features/todos/mappers";
 
@@ -24,18 +22,11 @@ export interface GoalPickerOption {
   title: string;
 }
 
-export async function listGoalsWithProgress(
-  userId: string,
-): Promise<GoalWithProgress[]> {
+export async function listGoalsWithProgress(): Promise<GoalWithProgress[]> {
+  const db = getLocalDb();
   const [goals, entries] = await Promise.all([
-    db.goal.findMany({
-      where: { userId },
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-    }),
-    db.entry.findMany({
-      where: { userId },
-      select: { goalRefs: true, createdAt: true },
-    }),
+    db.goals.toArray(),
+    db.entries.toArray(),
   ]);
 
   const stats = new Map<string, { count: number; lastActivity: Date | null }>();
@@ -51,30 +42,35 @@ export async function listGoalsWithProgress(
     }
   }
 
-  return goals.map((g) => {
-    const s = stats.get(g.id)!;
-    return {
-      id: g.id,
-      title: g.title,
-      description: g.description,
-      status: g.status,
-      targetDate: g.targetDate,
-      createdAt: g.createdAt,
-      updatedAt: g.updatedAt,
-      entryCount: s.count,
-      lastActivity: s.lastActivity,
-    };
-  });
+  return goals
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status.localeCompare(b.status);
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    })
+    .map((g) => {
+      const s = stats.get(g.id)!;
+      return {
+        id: g.id,
+        title: g.title,
+        description: g.description,
+        status: g.status,
+        targetDate: g.targetDate,
+        createdAt: g.createdAt,
+        updatedAt: g.updatedAt,
+        entryCount: s.count,
+        lastActivity: s.lastActivity,
+      };
+    });
 }
 
-export async function listActiveGoalsLight(
-  userId: string,
-): Promise<GoalPickerOption[]> {
-  return db.goal.findMany({
-    where: { userId, status: "ACTIVE" },
-    select: { id: true, title: true },
-    orderBy: { title: "asc" },
-  });
+export async function listActiveGoalsLight(): Promise<GoalPickerOption[]> {
+  const goals = await getLocalDb()
+    .goals.where("status")
+    .equals("ACTIVE")
+    .toArray();
+  return goals
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .map((g) => ({ id: g.id, title: g.title }));
 }
 
 export interface GoalDetail {
@@ -84,25 +80,19 @@ export interface GoalDetail {
   otherEntries: { id: string; kind: string; createdAt: Date }[];
 }
 
-export async function getGoalDetail(
-  userId: string,
-  id: string,
-): Promise<GoalDetail | null> {
-  const goal = await db.goal.findFirst({ where: { id, userId } });
+export async function getGoalDetail(id: string): Promise<GoalDetail | null> {
+  const db = getLocalDb();
+  const goal = await db.goals.get(id);
   if (!goal) return null;
 
-  const entries = await db.entry.findMany({
-    where: { userId, goalRefs: { has: id } },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
+  const entries = (
+    await db.entries.where("goalRefs").equals(id).toArray()
+  ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 200);
 
   const journals = entries
     .filter((e) => e.kind === "JOURNAL")
     .map(materializeJournal);
-  const todos = entries
-    .filter((e) => e.kind === "TODO")
-    .map(materializeTodo);
+  const todos = entries.filter((e) => e.kind === "TODO").map(materializeTodo);
   const otherEntries = entries
     .filter((e) => e.kind !== "JOURNAL" && e.kind !== "TODO")
     .map((e) => ({ id: e.id, kind: String(e.kind), createdAt: e.createdAt }));
