@@ -21,9 +21,14 @@ const NAV_LINKS: { href: string; label: string }[] = [
   { href: "/export", label: "Export" },
 ];
 
+function stripSlash(p: string): string {
+  return p.length > 1 ? p.replace(/\/$/, "") : p;
+}
+
 export function AppNav() {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = stripSlash(rawPathname);
   const pending = useRequestPending();
 
   useEffect(() => {
