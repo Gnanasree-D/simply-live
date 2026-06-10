@@ -40,15 +40,14 @@ function isExpectedToday(
 
 export async function listHabitsWithStreaks(): Promise<HabitWithStreak[]> {
   const db = getLocalDb();
-  const [habits, categories, habitEntries] = await Promise.all([
-    db.habits.where("archived").equals(0).toArray().catch(async () => {
-      // Dexie doesn't index booleans cleanly; fallback to filter
-      const all = await db.habits.toArray();
-      return all.filter((h) => !h.archived);
-    }),
+  const [allHabits, categories, habitEntries] = await Promise.all([
+    // IndexedDB can't index booleans, so the `archived` index never matches —
+    // load all habits and filter in memory.
+    db.habits.toArray(),
     db.habitCategories.toArray(),
     db.entries.where("kind").equals("HABIT").toArray(),
   ]);
+  const habits = allHabits.filter((h) => !h.archived);
 
   habits.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   habitEntries.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
