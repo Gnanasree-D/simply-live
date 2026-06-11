@@ -43,7 +43,22 @@ export function FoodCard({ food }: { food: FoodEntry }) {
               {MEAL_LABEL[food.meal]}
             </span>
           )}
+          {food.calories !== undefined && (
+            <span className="text-[10px] uppercase tracking-wider rounded-full bg-primary/10 text-primary px-2 py-0.5 tabular-nums">
+              {food.grams ? `${food.grams} g · ` : "~"}
+              {food.calories} kcal
+            </span>
+          )}
         </div>
+        {(food.protein !== undefined ||
+          food.carbs !== undefined ||
+          food.fat !== undefined) && (
+          <p className="mt-1 flex gap-2 text-[11px] text-muted-foreground tabular-nums">
+            {food.protein !== undefined && <span>P {food.protein}g</span>}
+            {food.carbs !== undefined && <span>C {food.carbs}g</span>}
+            {food.fat !== undefined && <span>F {food.fat}g</span>}
+          </p>
+        )}
         {food.notes && (
           <p className="mt-1 text-xs text-muted-foreground">{food.notes}</p>
         )}

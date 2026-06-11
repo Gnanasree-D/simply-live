@@ -6,6 +6,11 @@ interface FoodDataPayload {
   isJunk?: boolean;
   meal?: string;
   notes?: string;
+  calories?: number;
+  grams?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
 }
 
 function asMeal(s: unknown): Meal | undefined {
@@ -28,5 +33,10 @@ export function materializeFood(row: EntryRow): FoodEntry {
     isJunk: data.isJunk ?? false,
     meal: asMeal(data.meal),
     notes: data.notes,
+    calories: typeof data.calories === "number" ? data.calories : undefined,
+    grams: typeof data.grams === "number" ? data.grams : undefined,
+    protein: typeof data.protein === "number" ? data.protein : undefined,
+    carbs: typeof data.carbs === "number" ? data.carbs : undefined,
+    fat: typeof data.fat === "number" ? data.fat : undefined,
   };
 }

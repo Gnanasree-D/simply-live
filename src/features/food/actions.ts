@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { genId, getLocalDb, now } from "@/lib/local-db";
+import { lookupCalories } from "./calories";
 
 export interface FoodState {
   ok?: boolean;
@@ -19,6 +20,10 @@ const CreateFoodSchema = z.object({
     MealEnum.optional(),
   ),
   notes: z.string().optional(),
+  grams: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : Number(v)),
+    z.number().int().positive().max(5000).optional(),
+  ),
 });
 
 const UpdateFoodSchema = CreateFoodSchema.extend({
@@ -34,12 +39,15 @@ export async function createFood(
     isJunk: formData.get("isJunk"),
     meal: formData.get("meal"),
     notes: formData.get("notes") || undefined,
+    grams: formData.get("grams"),
   });
   if (!parsed.success) {
     return {
       error: parsed.error.flatten().fieldErrors.name?.[0] ?? "Invalid input",
     };
   }
+
+  const est = await lookupCalories(parsed.data.name, parsed.data.grams);
 
   const t = now();
   await getLocalDb().entries.add({
@@ -50,6 +58,11 @@ export async function createFood(
       isJunk: parsed.data.isJunk,
       meal: parsed.data.meal,
       notes: parsed.data.notes,
+      calories: est.calories ?? undefined,
+      grams: parsed.data.grams,
+      protein: est.protein,
+      carbs: est.carbs,
+      fat: est.fat,
     },
     tags: [],
     goalRefs: [],
@@ -69,6 +82,7 @@ export async function updateFood(
     isJunk: formData.get("isJunk"),
     meal: formData.get("meal"),
     notes: formData.get("notes") || undefined,
+    grams: formData.get("grams"),
   });
   if (!parsed.success) {
     return {
@@ -79,12 +93,38 @@ export async function updateFood(
   const row = await db.entries.get(parsed.data.id);
   if (!row || row.kind !== "FOOD") return { error: "Food not found" };
 
+  const prev = (row.data ?? {}) as {
+    name?: string;
+    calories?: number;
+    grams?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+  };
+  const unchanged =
+    prev.name === parsed.data.name && prev.grams === parsed.data.grams;
+  const nutrition = unchanged
+    ? {
+        calories: prev.calories,
+        protein: prev.protein,
+        carbs: prev.carbs,
+        fat: prev.fat,
+      }
+    : await lookupCalories(parsed.data.name, parsed.data.grams).then((e) => ({
+        calories: e.calories ?? undefined,
+        protein: e.protein,
+        carbs: e.carbs,
+        fat: e.fat,
+      }));
+
   await db.entries.update(parsed.data.id, {
     data: {
       name: parsed.data.name,
       isJunk: parsed.data.isJunk,
       meal: parsed.data.meal,
       notes: parsed.data.notes,
+      grams: parsed.data.grams,
+      ...nutrition,
     },
     updatedAt: now(),
   });

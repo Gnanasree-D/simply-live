@@ -32,8 +32,10 @@ export async function listRecentFood(limit = 50): Promise<FoodEntry[]> {
 export interface FoodSummary {
   totalToday: number;
   junkToday: number;
+  caloriesToday: number;
   totalThisWeek: number;
   junkThisWeek: number;
+  caloriesThisWeek: number;
 }
 
 export async function getFoodSummary(
@@ -52,11 +54,17 @@ export async function getFoodSummary(
   const weekJunk = weekRows.filter(
     (r) => (r.data as { isJunk?: boolean })?.isJunk === true,
   ).length;
+  const weekCalories = weekRows.reduce(
+    (sum, r) => sum + ((r.data as { calories?: number })?.calories ?? 0),
+    0,
+  );
 
   return {
     totalToday: today.length,
     junkToday: today.filter((f) => f.isJunk).length,
+    caloriesToday: today.reduce((sum, f) => sum + (f.calories ?? 0), 0),
     totalThisWeek: weekRows.length,
     junkThisWeek: weekJunk,
+    caloriesThisWeek: weekCalories,
   };
 }

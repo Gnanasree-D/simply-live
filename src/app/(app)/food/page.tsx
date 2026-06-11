@@ -34,6 +34,14 @@ export default function FoodPage() {
                 {summary.totalToday === 1 ? "entry" : "entries"}
               </span>{" "}
               today
+              {summary.caloriesToday > 0 && (
+                <>
+                  {" · "}
+                  <span className="tabular-nums text-foreground">
+                    ~{summary.caloriesToday.toLocaleString()} kcal
+                  </span>
+                </>
+              )}
               {summary.junkToday > 0 && (
                 <>
                   {" · "}
@@ -79,6 +87,14 @@ export default function FoodPage() {
             </p>
             <p className="text-sm text-muted-foreground">
               entries logged
+              {summary.caloriesThisWeek > 0 && (
+                <>
+                  {" · "}
+                  <span className="tabular-nums text-foreground">
+                    ~{summary.caloriesThisWeek.toLocaleString()} kcal
+                  </span>
+                </>
+              )}
               {summary.junkThisWeek > 0 && (
                 <>
                   {" · "}

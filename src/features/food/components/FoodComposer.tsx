@@ -50,6 +50,19 @@ export function FoodComposer() {
           placeholder="What did you eat?"
           className="flex-1 min-w-0 border-0 bg-transparent focus:outline-none text-base placeholder:text-muted-foreground"
         />
+        <div className="flex items-baseline gap-1 shrink-0">
+          <input
+            name="grams"
+            type="number"
+            min={1}
+            max={5000}
+            aria-label="Portion in grams (optional)"
+            placeholder="g"
+            title="Portion in grams — leave blank for a ~150 g estimate"
+            className="w-14 border-0 bg-transparent text-right tabular-nums focus:outline-none text-sm placeholder:text-muted-foreground/50"
+          />
+          <span className="text-xs text-muted-foreground">g</span>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

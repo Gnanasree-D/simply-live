@@ -75,6 +75,11 @@ export const FoodEntrySchema = EntryBase.extend({
   isJunk: z.boolean().default(false),
   meal: MealSchema.optional(),
   notes: z.string().optional(),
+  calories: z.number().int().nonnegative().optional(),
+  grams: z.number().int().positive().optional(),
+  protein: z.number().nonnegative().optional(),
+  carbs: z.number().nonnegative().optional(),
+  fat: z.number().nonnegative().optional(),
 });
 
 export const EntrySchema = z.discriminatedUnion("kind", [

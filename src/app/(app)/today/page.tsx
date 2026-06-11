@@ -281,6 +281,11 @@ export default function TodayPage() {
                     {f.meal}
                   </span>
                 )}
+                {f.calories !== undefined && (
+                  <span className="text-[10px] uppercase tracking-wider text-primary shrink-0 tabular-nums">
+                    ~{f.calories} kcal
+                  </span>
+                )}
               </li>
             ))}
             {foods.length > 6 && (
