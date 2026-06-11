@@ -5,6 +5,7 @@ export interface CalorieEstimate {
   protein?: number;
   carbs?: number;
   fat?: number;
+  fiber?: number;
   match?: string;
   reason?: "not_configured" | "no_match" | "error";
 }

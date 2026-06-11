@@ -14,6 +14,7 @@ interface CalorieResult {
   protein?: number;
   carbs?: number;
   fat?: number;
+  fiber?: number;
   match?: string;
   reason?: "not_configured" | "no_match" | "error";
 }
@@ -44,7 +45,8 @@ function pickNutrient(
 
 const KCAL = /kcal/i;
 const GRAM = /^g$/i;
-// FDC nutrient numbers: energy 208, protein 203, total fat 204, carbs 205.
+// FDC nutrient numbers: energy 208, protein 203, total fat 204, carbs 205,
+// fiber 291.
 function energyKcalPer100g(food: FdcFood): number | null {
   return pickNutrient(food, ["208", "1008"], KCAL);
 }
@@ -114,6 +116,7 @@ export async function POST(req: Request): Promise<NextResponse<CalorieResult>> {
       protein: scaleMacro(pickNutrient(food, ["203", "1003"], GRAM)),
       carbs: scaleMacro(pickNutrient(food, ["205", "1005"], GRAM)),
       fat: scaleMacro(pickNutrient(food, ["204", "1004"], GRAM)),
+      fiber: scaleMacro(pickNutrient(food, ["291", "1079"], GRAM)),
       match: food.description,
     });
   } catch {

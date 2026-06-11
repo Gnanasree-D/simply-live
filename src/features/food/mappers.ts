@@ -11,6 +11,7 @@ interface FoodDataPayload {
   protein?: number;
   carbs?: number;
   fat?: number;
+  fiber?: number;
 }
 
 function asMeal(s: unknown): Meal | undefined {
@@ -38,5 +39,6 @@ export function materializeFood(row: EntryRow): FoodEntry {
     protein: typeof data.protein === "number" ? data.protein : undefined,
     carbs: typeof data.carbs === "number" ? data.carbs : undefined,
     fat: typeof data.fat === "number" ? data.fat : undefined,
+    fiber: typeof data.fiber === "number" ? data.fiber : undefined,
   };
 }

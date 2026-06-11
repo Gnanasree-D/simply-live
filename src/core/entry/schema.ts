@@ -80,6 +80,7 @@ export const FoodEntrySchema = EntryBase.extend({
   protein: z.number().nonnegative().optional(),
   carbs: z.number().nonnegative().optional(),
   fat: z.number().nonnegative().optional(),
+  fiber: z.number().nonnegative().optional(),
 });
 
 export const EntrySchema = z.discriminatedUnion("kind", [

@@ -52,11 +52,13 @@ export function FoodCard({ food }: { food: FoodEntry }) {
         </div>
         {(food.protein !== undefined ||
           food.carbs !== undefined ||
-          food.fat !== undefined) && (
+          food.fat !== undefined ||
+          food.fiber !== undefined) && (
           <p className="mt-1 flex gap-2 text-[11px] text-muted-foreground tabular-nums">
             {food.protein !== undefined && <span>P {food.protein}g</span>}
             {food.carbs !== undefined && <span>C {food.carbs}g</span>}
             {food.fat !== undefined && <span>F {food.fat}g</span>}
+            {food.fiber !== undefined && <span>Fib {food.fiber}g</span>}
           </p>
         )}
         {food.notes && (

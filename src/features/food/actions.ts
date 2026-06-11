@@ -63,6 +63,7 @@ export async function createFood(
       protein: est.protein,
       carbs: est.carbs,
       fat: est.fat,
+      fiber: est.fiber,
     },
     tags: [],
     goalRefs: [],
@@ -100,6 +101,7 @@ export async function updateFood(
     protein?: number;
     carbs?: number;
     fat?: number;
+    fiber?: number;
   };
   const unchanged =
     prev.name === parsed.data.name && prev.grams === parsed.data.grams;
@@ -109,12 +111,14 @@ export async function updateFood(
         protein: prev.protein,
         carbs: prev.carbs,
         fat: prev.fat,
+        fiber: prev.fiber,
       }
     : await lookupCalories(parsed.data.name, parsed.data.grams).then((e) => ({
         calories: e.calories ?? undefined,
         protein: e.protein,
         carbs: e.carbs,
         fat: e.fat,
+        fiber: e.fiber,
       }));
 
   await db.entries.update(parsed.data.id, {
