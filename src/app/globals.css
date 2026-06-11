@@ -109,6 +109,13 @@ html {
   caret-color: var(--primary);
 }
 
+/* Slightly more compact on phones — scales all rem-based type and spacing. */
+@media (max-width: 767px) {
+  html {
+    font-size: 93.75%; /* 15px base instead of 16px */
+  }
+}
+
 body {
   background-color: var(--background);
   background-image:
