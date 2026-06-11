@@ -6,7 +6,7 @@ import {
   getDailyActivitySummary,
   listActivityForDay,
 } from "@/features/activity/queries";
-import { WaterButton } from "@/features/activity/components/WaterButton";
+import { WaterForm } from "@/features/activity/components/WaterForm";
 import { StepsForm } from "@/features/activity/components/StepsForm";
 import { WorkoutComposer } from "@/features/activity/components/WorkoutComposer";
 import { ActivityLog } from "@/features/activity/components/ActivityLog";
@@ -38,7 +38,7 @@ export default function ActivityPage() {
       </header>
 
       <section className="mb-8 grid gap-3 sm:grid-cols-2">
-        <WaterButton currentCups={summary.waterCups} />
+        <WaterForm currentMl={summary.waterMl} />
         <StepsForm currentCount={summary.steps} />
       </section>
 

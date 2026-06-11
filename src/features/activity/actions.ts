@@ -17,17 +17,40 @@ const StepsSchema = z.object({
   count: z.coerce.number().int().min(0).max(200000),
 });
 
-export async function logWater() {
+const WaterSchema = z.object({
+  ml: z.coerce.number().int().min(0).max(20000),
+});
+
+export async function setWater(
+  _prev: ActivityState,
+  formData: FormData,
+): Promise<ActivityState> {
+  const parsed = WaterSchema.safeParse({ ml: formData.get("ml") });
+  if (!parsed.success) return { error: "Water must be between 0 and 20000 ml" };
+
+  const db = getLocalDb();
   const t = now();
-  await getLocalDb().entries.add({
+  const dayStart = startOfDay(t);
+  const dayEnd = endOfDay(t);
+  const todays = (
+    await db.entries.where("kind").equals("ACTIVITY").toArray()
+  ).filter((e) => e.createdAt >= dayStart && e.createdAt <= dayEnd);
+  const existingWaterIds = todays
+    .filter((e) => (e.data as { subtype?: string })?.subtype === "water")
+    .map((e) => e.id);
+  if (existingWaterIds.length > 0) {
+    await db.entries.bulkDelete(existingWaterIds);
+  }
+  await db.entries.add({
     id: genId(),
     kind: "ACTIVITY",
-    data: { subtype: "water", cups: 1 },
+    data: { subtype: "water", ml: parsed.data.ml },
     tags: [],
     goalRefs: [],
     createdAt: t,
     updatedAt: t,
   });
+  return { ok: true };
 }
 
 export async function logWorkout(

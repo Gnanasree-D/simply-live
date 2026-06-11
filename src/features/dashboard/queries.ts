@@ -1,6 +1,7 @@
 import { getLocalDb } from "@/lib/local-db";
 import { computeStreak } from "@/core/streaks/compute";
 import { startOfDay, startOfWeek, todayKey } from "@/core/time/day";
+import { readWaterMl } from "@/core/activity/water";
 
 export interface ActivityDay {
   date: Date;
@@ -28,7 +29,7 @@ export interface BodyDay {
   date: Date;
   workout: boolean;
   workoutMinutes: number;
-  waterCups: number;
+  waterMl: number;
   steps: number;
   foodEntries: number;
   junkEntries: number;
@@ -38,7 +39,7 @@ export interface BodySummary {
   days: BodyDay[];
   workoutDays: number;
   totalWorkoutMinutes: number;
-  avgWaterCups: number;
+  avgWaterMl: number;
   avgSteps: number;
   totalFood: number;
   totalJunk: number;
@@ -95,7 +96,7 @@ function buildBodySummary(entries: EntryRow[], days: number): BodySummary {
       date: d,
       workout: false,
       workoutMinutes: 0,
-      waterCups: 0,
+      waterMl: 0,
       steps: 0,
       foodEntries: 0,
       junkEntries: 0,
@@ -110,12 +111,13 @@ function buildBodySummary(entries: EntryRow[], days: number): BodySummary {
     if (e.kind === "ACTIVITY") {
       const data = (e.data ?? {}) as {
         subtype?: string;
+        ml?: number;
         cups?: number;
         count?: number;
         durationMins?: number;
       };
       if (data.subtype === "water") {
-        day.waterCups += data.cups ?? 0;
+        day.waterMl += readWaterMl(data);
       } else if (data.subtype === "steps") {
         day.steps = Math.max(day.steps, data.count ?? 0);
       } else if (data.subtype === "workout") {
@@ -131,13 +133,13 @@ function buildBodySummary(entries: EntryRow[], days: number): BodySummary {
   const arr = Array.from(byDay.values());
   const workoutDays = arr.filter((d) => d.workout).length;
   const totalWorkoutMinutes = arr.reduce((s, d) => s + d.workoutMinutes, 0);
-  const waterDaysWithData = arr.filter((d) => d.waterCups > 0).length;
-  const avgWaterCups =
+  const waterDaysWithData = arr.filter((d) => d.waterMl > 0).length;
+  const avgWaterMl =
     waterDaysWithData === 0
       ? 0
       : Math.round(
-          (arr.reduce((s, d) => s + d.waterCups, 0) / waterDaysWithData) * 10,
-        ) / 10;
+          arr.reduce((s, d) => s + d.waterMl, 0) / waterDaysWithData,
+        );
   const stepDaysWithData = arr.filter((d) => d.steps > 0).length;
   const avgSteps =
     stepDaysWithData === 0
@@ -152,7 +154,7 @@ function buildBodySummary(entries: EntryRow[], days: number): BodySummary {
     days: arr,
     workoutDays,
     totalWorkoutMinutes,
-    avgWaterCups,
+    avgWaterMl,
     avgSteps,
     totalFood,
     totalJunk,

@@ -76,7 +76,7 @@ export interface InsightInput {
     createdAt: Date;
     subtype: "workout" | "water" | "steps";
     durationMins?: number;
-    cups?: number;
+    ml?: number;
     count?: number;
   }[];
   foods: { createdAt: Date; isJunk: boolean }[];
@@ -158,7 +158,7 @@ function computeBodyInsights(input: InsightInput): BodyInsights {
     if (idx < 0) continue;
     const dayKey = todayKey(a.createdAt);
     if (a.subtype === "water") {
-      buckets[idx].waterTotal += a.cups ?? 0;
+      buckets[idx].waterTotal += a.ml ?? 0;
       buckets[idx].waterDays.add(dayKey);
     } else if (a.subtype === "steps") {
       const cur = buckets[idx].stepsByDay.get(dayKey) ?? 0;
@@ -178,7 +178,7 @@ function computeBodyInsights(input: InsightInput): BodyInsights {
     const waterAvg =
       b.waterDays.size === 0
         ? 0
-        : Math.round((b.waterTotal / b.waterDays.size) * 10) / 10;
+        : Math.round(b.waterTotal / b.waterDays.size);
     const stepValues = Array.from(b.stepsByDay.values());
     const stepsAvg =
       stepValues.length === 0

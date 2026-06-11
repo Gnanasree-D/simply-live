@@ -52,9 +52,7 @@ export function ActivityLog({ entries }: { entries: ActivityEntry[] }) {
               </p>
             )}
             {e.subtype === "water" && (
-              <p className="text-foreground">
-                Water · {e.cups ?? 1} {e.cups === 1 ? "cup" : "cups"}
-              </p>
+              <p className="text-foreground">Water · {e.ml ?? 0} ml</p>
             )}
             {e.subtype === "steps" && (
               <p className="text-foreground tabular-nums">

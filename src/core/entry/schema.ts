@@ -61,7 +61,7 @@ export const ActivityEntrySchema = EntryBase.extend({
   subtype: ActivitySubtypeSchema,
   title: z.string().optional(),
   durationMins: z.number().int().nonnegative().optional(),
-  cups: z.number().int().nonnegative().optional(),
+  ml: z.number().int().nonnegative().optional(),
   count: z.number().int().nonnegative().optional(),
   notes: z.string().optional(),
 });

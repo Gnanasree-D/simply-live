@@ -63,7 +63,7 @@ export default function TodayPage() {
   const habitsDone = todaysHabits.filter((h) => h.doneToday).length;
   const junkCount = foods.filter((f) => f.isJunk).length;
   const hasActivity =
-    activity.waterCups > 0 ||
+    activity.waterMl > 0 ||
     activity.steps > 0 ||
     activity.workoutCount > 0;
 
@@ -188,10 +188,10 @@ export default function TodayPage() {
               />
               <div className="min-w-0">
                 <p className="font-serif text-xl tabular-nums leading-none">
-                  {activity.waterCups}
+                  {activity.waterMl}
                 </p>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {activity.waterCups === 1 ? "cup" : "cups"}
+                  ml
                 </p>
               </div>
             </div>

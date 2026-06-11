@@ -2,11 +2,11 @@ import { Droplet, Dumbbell, Footprints, Utensils } from "lucide-react";
 import type { BodySummary } from "../queries";
 import { cn } from "@/lib/utils";
 
-function waterIntensity(cups: number): string {
-  if (cups === 0) return "bg-muted";
-  if (cups <= 2) return "bg-primary/30";
-  if (cups <= 5) return "bg-primary/55";
-  if (cups <= 8) return "bg-primary/80";
+function waterIntensity(ml: number): string {
+  if (ml === 0) return "bg-muted";
+  if (ml <= 500) return "bg-primary/30";
+  if (ml <= 1250) return "bg-primary/55";
+  if (ml <= 2000) return "bg-primary/80";
   return "bg-primary";
 }
 
@@ -53,14 +53,14 @@ export function BodyTrendRows({ body }: { body: BodySummary }) {
           />
         }
         label="Water"
-        sub={body.avgWaterCups > 0 ? `${body.avgWaterCups} cups/day avg` : "—"}
+        sub={body.avgWaterMl > 0 ? `${body.avgWaterMl} ml/day avg` : "—"}
       >
         <div className="flex gap-0.5 shrink-0">
           {body.days.map((d, i) => (
             <div
               key={i}
-              className={cn("w-1.5 h-4 rounded-[1px]", waterIntensity(d.waterCups))}
-              title={`${d.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}: ${d.waterCups} cups`}
+              className={cn("w-1.5 h-4 rounded-[1px]", waterIntensity(d.waterMl))}
+              title={`${d.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}: ${d.waterMl} ml`}
             />
           ))}
         </div>

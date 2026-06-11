@@ -75,7 +75,7 @@ export interface GoalReport {
 export interface BodyDayCell {
   date: Date;
   workout: boolean;
-  waterCups: number;
+  waterMl: number;
   steps: number;
   foodEntries: number;
   junkEntries: number;
@@ -85,7 +85,7 @@ export interface BodyReport {
   hasData: boolean;
   workouts: number;
   workoutMinutes: number;
-  avgWaterCups: number;
+  avgWaterMl: number;
   avgSteps: number;
   foodEntries: number;
   junkEntries: number;
@@ -109,7 +109,7 @@ export function buildBodyReport(
     const cell: BodyDayCell = {
       date: d,
       workout: false,
-      waterCups: 0,
+      waterMl: 0,
       steps: 0,
       foodEntries: 0,
       junkEntries: 0,
@@ -134,11 +134,11 @@ export function buildBodyReport(
       const cell = byKey.get(todayKey(a.createdAt));
       if (cell) cell.workout = true;
     } else if (a.subtype === "water") {
-      waterTotal += a.cups ?? 0;
+      waterTotal += a.ml ?? 0;
       const k = todayKey(a.createdAt);
       waterDays.add(k);
       const cell = byKey.get(k);
-      if (cell) cell.waterCups += a.cups ?? 0;
+      if (cell) cell.waterMl += a.ml ?? 0;
     } else if (a.subtype === "steps") {
       const k = todayKey(a.createdAt);
       const cur = stepsByDay.get(k) ?? 0;
@@ -160,10 +160,10 @@ export function buildBodyReport(
     if (f.isJunk) junkEntries++;
   }
 
-  const avgWaterCups =
+  const avgWaterMl =
     waterDays.size === 0
       ? 0
-      : Math.round((waterTotal / waterDays.size) * 10) / 10;
+      : Math.round(waterTotal / waterDays.size);
   const stepVals = Array.from(stepsByDay.values());
   const avgSteps =
     stepVals.length === 0
@@ -181,7 +181,7 @@ export function buildBodyReport(
     hasData,
     workouts,
     workoutMinutes,
-    avgWaterCups,
+    avgWaterMl,
     avgSteps,
     foodEntries,
     junkEntries,

@@ -1,5 +1,6 @@
 import { getLocalDb } from "@/lib/local-db";
 import { computeInsights, type InsightsResult } from "@/core/insights/compute";
+import { readWaterMl } from "@/core/activity/water";
 import type { Mood } from "@/core/entry/schema";
 
 export async function getInsights(): Promise<InsightsResult> {
@@ -35,7 +36,7 @@ export async function getInsights(): Promise<InsightsResult> {
     createdAt: Date;
     subtype: "workout" | "water" | "steps";
     durationMins?: number;
-    cups?: number;
+    ml?: number;
     count?: number;
   }[] = [];
   const foods: { createdAt: Date; isJunk: boolean }[] = [];
@@ -57,6 +58,7 @@ export async function getInsights(): Promise<InsightsResult> {
       const data = (e.data ?? {}) as {
         subtype?: string;
         durationMins?: number;
+        ml?: number;
         cups?: number;
         count?: number;
       };
@@ -69,7 +71,7 @@ export async function getInsights(): Promise<InsightsResult> {
           createdAt: e.createdAt,
           subtype: data.subtype,
           durationMins: data.durationMins,
-          cups: data.cups,
+          ml: data.subtype === "water" ? readWaterMl(data) : undefined,
           count: data.count,
         });
       }

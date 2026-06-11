@@ -1,10 +1,12 @@
 import type { ActivityEntry, ActivitySubtype } from "@/core/entry/schema";
+import { readWaterMl } from "@/core/activity/water";
 import type { EntryRow } from "@/lib/local-db";
 
 interface ActivityDataPayload {
   subtype?: string;
   title?: string;
   durationMins?: number;
+  ml?: number;
   cups?: number;
   count?: number;
   notes?: string;
@@ -28,7 +30,7 @@ export function materializeActivity(row: EntryRow): ActivityEntry | null {
     subtype: data.subtype,
     title: data.title,
     durationMins: data.durationMins,
-    cups: data.cups,
+    ml: data.subtype === "water" ? readWaterMl(data) : undefined,
     count: data.count,
     notes: data.notes,
   };

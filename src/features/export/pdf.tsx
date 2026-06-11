@@ -864,8 +864,8 @@ function BodyCard({ body }: { body: BodyReport }) {
           }
         />
         <BodyStat
-          value={body.avgWaterCups > 0 ? String(body.avgWaterCups) : "—"}
-          label="cups water"
+          value={body.avgWaterMl > 0 ? String(body.avgWaterMl) : "—"}
+          label="ml water"
           sub="daily avg"
         />
         <BodyStat

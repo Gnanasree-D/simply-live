@@ -32,7 +32,7 @@ export async function listRecentActivity(
 }
 
 export interface DailyActivitySummary {
-  waterCups: number;
+  waterMl: number;
   steps: number;
   workoutMinutes: number;
   workoutCount: number;
@@ -42,17 +42,17 @@ export async function getDailyActivitySummary(
   day: Date = new Date(),
 ): Promise<DailyActivitySummary> {
   const entries = await listActivityForDay(day);
-  let waterCups = 0;
+  let waterMl = 0;
   let steps = 0;
   let workoutMinutes = 0;
   let workoutCount = 0;
   for (const e of entries) {
-    if (e.subtype === "water") waterCups += e.cups ?? 0;
+    if (e.subtype === "water") waterMl += e.ml ?? 0;
     else if (e.subtype === "steps") steps = Math.max(steps, e.count ?? 0);
     else if (e.subtype === "workout") {
       workoutCount++;
       workoutMinutes += e.durationMins ?? 0;
     }
   }
-  return { waterCups, steps, workoutMinutes, workoutCount };
+  return { waterMl, steps, workoutMinutes, workoutCount };
 }
