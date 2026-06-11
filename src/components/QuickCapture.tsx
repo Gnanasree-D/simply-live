@@ -45,7 +45,7 @@ export function QuickCapture() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Quick capture"
-        className="fixed bottom-6 right-6 z-40 size-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:opacity-90 transition-opacity flex items-center justify-center"
+        className="fixed bottom-20 right-6 z-40 size-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:opacity-90 transition-opacity flex items-center justify-center md:bottom-6"
       >
         <Plus className="size-5" />
       </button>

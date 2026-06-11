@@ -9,7 +9,7 @@ export default function AppLayout({
 }) {
   return (
     <AuthGate>
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 pb-16 md:pb-0">
         <AppNav />
         {children}
         <QuickCapture />
