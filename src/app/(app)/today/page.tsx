@@ -272,7 +272,7 @@ export default function TodayPage() {
             {foods.slice(0, 6).map((f) => (
               <li
                 key={f.id}
-                className="flex items-center gap-3 px-4 py-2 text-sm"
+                className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 text-sm"
               >
                 <Utensils
                   className="size-3.5 text-muted-foreground shrink-0"
@@ -281,21 +281,23 @@ export default function TodayPage() {
                 <span className="flex-1 min-w-0 truncate text-foreground">
                   {f.name}
                 </span>
-                {f.isJunk && (
-                  <span className="text-[10px] uppercase tracking-wider rounded-full bg-destructive/15 text-destructive px-2 py-0.5 shrink-0">
-                    Junk
-                  </span>
-                )}
-                {f.meal && (
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-                    {f.meal}
-                  </span>
-                )}
-                {f.calories !== undefined && (
-                  <span className="text-[10px] uppercase tracking-wider text-primary shrink-0 tabular-nums">
-                    ~{f.calories} kcal
-                  </span>
-                )}
+                <span className="ml-auto flex shrink-0 items-center gap-2">
+                  {f.isJunk && (
+                    <span className="text-[10px] uppercase tracking-wider rounded-full bg-destructive/15 text-destructive px-2 py-0.5">
+                      Junk
+                    </span>
+                  )}
+                  {f.meal && (
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {f.meal}
+                    </span>
+                  )}
+                  {f.calories !== undefined && (
+                    <span className="text-[10px] uppercase tracking-wider text-primary tabular-nums">
+                      ~{f.calories} kcal
+                    </span>
+                  )}
+                </span>
               </li>
             ))}
             {foods.length > 6 && (
@@ -304,11 +306,11 @@ export default function TodayPage() {
               </li>
             )}
             {foodTotals.calories > 0 && (
-              <li className="flex items-baseline justify-between gap-3 px-4 py-2 bg-muted/40">
-                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              <li className="flex flex-col gap-0.5 px-4 py-2 bg-muted/40 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">
                   Day total
                 </span>
-                <span className="flex items-baseline gap-2 text-xs tabular-nums">
+                <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs tabular-nums">
                   <span className="font-medium text-foreground">
                     ~{foodTotals.calories} kcal
                   </span>

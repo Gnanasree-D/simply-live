@@ -54,7 +54,7 @@ export function FoodCard({ food }: { food: FoodEntry }) {
           food.carbs !== undefined ||
           food.fat !== undefined ||
           food.fiber !== undefined) && (
-          <p className="mt-1 flex gap-2 text-[11px] text-muted-foreground tabular-nums">
+          <p className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
             {food.protein !== undefined && <span>P {food.protein}g</span>}
             {food.carbs !== undefined && <span>C {food.carbs}g</span>}
             {food.fat !== undefined && <span>F {food.fat}g</span>}
