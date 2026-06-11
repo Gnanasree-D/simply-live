@@ -62,6 +62,16 @@ export default function TodayPage() {
   const todaysHabits = habits.filter((h) => h.expectedToday);
   const habitsDone = todaysHabits.filter((h) => h.doneToday).length;
   const junkCount = foods.filter((f) => f.isJunk).length;
+  const foodTotals = foods.reduce(
+    (acc, f) => ({
+      calories: acc.calories + (f.calories ?? 0),
+      protein: acc.protein + (f.protein ?? 0),
+      carbs: acc.carbs + (f.carbs ?? 0),
+      fat: acc.fat + (f.fat ?? 0),
+      fiber: acc.fiber + (f.fiber ?? 0),
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+  );
   const hasActivity =
     activity.waterMl > 0 ||
     activity.steps > 0 ||
@@ -291,6 +301,24 @@ export default function TodayPage() {
             {foods.length > 6 && (
               <li className="px-4 py-2 text-xs text-muted-foreground text-center">
                 + {foods.length - 6} more
+              </li>
+            )}
+            {foodTotals.calories > 0 && (
+              <li className="flex items-baseline justify-between gap-3 px-4 py-2 bg-muted/40">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Day total
+                </span>
+                <span className="flex items-baseline gap-2 text-xs tabular-nums">
+                  <span className="font-medium text-foreground">
+                    ~{foodTotals.calories} kcal
+                  </span>
+                  <span className="text-muted-foreground">
+                    P {Math.round(foodTotals.protein)} · C{" "}
+                    {Math.round(foodTotals.carbs)} · F{" "}
+                    {Math.round(foodTotals.fat)} · Fib{" "}
+                    {Math.round(foodTotals.fiber)} g
+                  </span>
+                </span>
               </li>
             )}
           </ul>
