@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { signAuthToken } from "@/lib/auth-token";
 import { genId } from "@/lib/server-id";
+import { DB_UNREACHABLE_MESSAGE, isDbUnreachable } from "@/lib/db-errors";
 
 const Body = z.object({
   email: z.string().trim().email().toLowerCase(),
@@ -28,10 +29,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
-  const existing = await db.user.findUnique({
-    where: { email: parsed.email },
-    select: { id: true },
-  });
+  let existing;
+  try {
+    existing = await db.user.findUnique({
+      where: { email: parsed.email },
+      select: { id: true },
+    });
+  } catch (err) {
+    if (isDbUnreachable(err)) {
+      return NextResponse.json(
+        { error: DB_UNREACHABLE_MESSAGE },
+        { status: 503 },
+      );
+    }
+    throw err;
+  }
   if (existing) {
     return NextResponse.json(
       { error: "An account with this email already exists." },
@@ -54,17 +66,28 @@ export async function POST(req: Request) {
     bcrypt.hash(recoveryKey, 10),
   ]);
 
-  const user = await db.user.create({
-    data: {
-      id: genId(),
-      email: parsed.email,
-      passwordHash,
-      kdfSalt,
-      recoveryHash,
-      recoverySalt,
-    },
-    select: { id: true, email: true, kdfSalt: true, recoverySalt: true },
-  });
+  let user;
+  try {
+    user = await db.user.create({
+      data: {
+        id: genId(),
+        email: parsed.email,
+        passwordHash,
+        kdfSalt,
+        recoveryHash,
+        recoverySalt,
+      },
+      select: { id: true, email: true, kdfSalt: true, recoverySalt: true },
+    });
+  } catch (err) {
+    if (isDbUnreachable(err)) {
+      return NextResponse.json(
+        { error: DB_UNREACHABLE_MESSAGE },
+        { status: 503 },
+      );
+    }
+    throw err;
+  }
 
   const token = await signAuthToken({ userId: user.id, email: user.email });
 

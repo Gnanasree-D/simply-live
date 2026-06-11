@@ -3,6 +3,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { signAuthToken } from "@/lib/auth-token";
+import { DB_UNREACHABLE_MESSAGE, isDbUnreachable } from "@/lib/db-errors";
 
 const Body = z.object({
   email: z.string().trim().email().toLowerCase(),
@@ -20,9 +21,20 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = await db.user.findUnique({
-    where: { email: parsed.email },
-  });
+  let user;
+  try {
+    user = await db.user.findUnique({
+      where: { email: parsed.email },
+    });
+  } catch (err) {
+    if (isDbUnreachable(err)) {
+      return NextResponse.json(
+        { error: DB_UNREACHABLE_MESSAGE },
+        { status: 503 },
+      );
+    }
+    throw err;
+  }
   // Constant-ish-time: always run a bcrypt compare to avoid leaking
   // existence via response timing.
   const dummyHash =

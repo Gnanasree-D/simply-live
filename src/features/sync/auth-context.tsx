@@ -41,11 +41,23 @@ export function useAuth(): AuthContextValue {
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      // Fail fast instead of hanging if the server can't reach the database.
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new Error(
+        "The server took too long to respond — it may be unable to reach the database. Please try again.",
+      );
+    }
+    throw new Error("Network error — please check your connection and try again.");
+  }
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     try {
