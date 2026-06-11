@@ -27,7 +27,7 @@ function GoalDetailInner() {
     return (
       <main className="flex-1 mx-auto w-full max-w-2xl px-6 py-10">
         <Link
-          href="/goals"
+          href="/plan/goals"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="size-3.5" /> Goals
@@ -41,7 +41,7 @@ function GoalDetailInner() {
     return (
       <main className="flex-1 mx-auto w-full max-w-2xl px-6 py-10">
         <Link
-          href="/goals"
+          href="/plan/goals"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="size-3.5" /> Goals
@@ -68,7 +68,7 @@ function GoalDetailInner() {
   return (
     <main className="flex-1 mx-auto w-full max-w-2xl px-6 py-10">
       <Link
-        href="/goals"
+        href="/plan/goals"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
       >
         <ArrowLeft className="size-3.5" /> Goals

@@ -11,20 +11,21 @@ import { SignOutButton } from "@/features/auth/components/SignOutButton";
 
 const NAV_LINKS: { href: string; label: string }[] = [
   { href: "/today", label: "Today" },
-  { href: "/journal", label: "Journal" },
-  { href: "/timetable", label: "Timetable" },
-  { href: "/todos", label: "To-Do" },
-  { href: "/habits", label: "Habits" },
-  { href: "/goals", label: "Goals" },
-  { href: "/activity", label: "Activity" },
-  { href: "/food", label: "Food" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/insights", label: "Insights" },
-  { href: "/export", label: "Export" },
+  { href: "/plan", label: "Plan" },
+  { href: "/body", label: "Body" },
+  { href: "/progress", label: "Progress" },
 ];
 
 function stripSlash(p: string): string {
   return p.length > 1 ? p.replace(/\/$/, "") : p;
+}
+
+// Goals detail lives outside the tab tree but belongs to Plan.
+function isActive(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
+  if (pathname.startsWith(href + "/")) return true;
+  if (href === "/plan" && pathname.startsWith("/goals")) return true;
+  return false;
 }
 
 export function AppNav() {
@@ -61,7 +62,7 @@ export function AppNav() {
 
         <div className="hidden md:flex flex-1 items-center justify-end gap-x-5 text-sm">
           {NAV_LINKS.map((link) => {
-            const active = pathname === link.href;
+            const active = isActive(pathname, link.href);
             return (
               <Link
                 key={link.href}
@@ -100,7 +101,7 @@ export function AppNav() {
         <div className="md:hidden border-t border-border bg-background">
           <ul className="mx-auto w-full max-w-5xl px-6 py-3 flex flex-col text-sm">
             {NAV_LINKS.map((link) => {
-              const active = pathname === link.href;
+              const active = isActive(pathname, link.href);
               return (
                 <li key={link.href}>
                   <Link

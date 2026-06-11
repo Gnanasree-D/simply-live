@@ -62,7 +62,7 @@ export async function createWeeklyReview(
     createdAt: t,
     updatedAt: t,
   });
-  return { ok: true, redirectTo: "/journal" };
+  return { ok: true, redirectTo: "/plan/journal" };
 }
 
 function formatRange(start: Date, end: Date): string {

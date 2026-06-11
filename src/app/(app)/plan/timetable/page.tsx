@@ -47,7 +47,7 @@ function TimetableInner() {
           <h1 className="font-serif text-3xl">Timetable</h1>
           {!isCurrentWeek && (
             <Link
-              href="/timetable"
+              href="/plan/timetable"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Jump to this week
@@ -56,7 +56,7 @@ function TimetableInner() {
         </div>
         <div className="mt-2 flex items-center justify-between">
           <Link
-            href={`/timetable?date=${toInputDate(prevWeek)}`}
+            href={`/plan/timetable?date=${toInputDate(prevWeek)}`}
             aria-label="Previous week"
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -65,7 +65,7 @@ function TimetableInner() {
           </Link>
           <span className="text-sm font-medium">{rangeLabel}</span>
           <Link
-            href={`/timetable?date=${toInputDate(nextWeek)}`}
+            href={`/plan/timetable?date=${toInputDate(nextWeek)}`}
             aria-label="Next week"
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >

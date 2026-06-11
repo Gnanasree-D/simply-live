@@ -87,7 +87,7 @@ export default function TodayPage() {
           <h2 className="font-serif text-xl">Timetable</h2>
           {blocks.length > 0 && (
             <Link
-              href="/timetable"
+              href="/plan/timetable"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               {blocks.length} {blocks.length === 1 ? "block" : "blocks"}
@@ -166,7 +166,7 @@ export default function TodayPage() {
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="font-serif text-xl">Activity</h2>
           <Link
-            href="/activity"
+            href="/body/activity"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Open
@@ -234,7 +234,7 @@ export default function TodayPage() {
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="font-serif text-xl">Food</h2>
           <Link
-            href="/food"
+            href="/body/food"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             {foods.length > 0 ? (
